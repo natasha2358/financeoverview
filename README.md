@@ -29,6 +29,26 @@ dotnet run
 
 The API will be available at `http://localhost:5000/api/health` by default.
 
+## CI
+GitHub Actions runs on every push and pull request. The workflow is intentionally minimal and runs two jobs:
+- **Backend (.NET):** restores, builds, and tests the API test project with .NET 10.
+- **Frontend (Vite):** installs dependencies with `npm ci` and builds the production bundle.
+Both jobs run without relying on seeded demo data.
+
+To run the same commands locally:
+```bash
+# backend
+cd backend
+dotnet restore FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj
+dotnet build FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-restore
+dotnet test FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-build
+
+# frontend
+cd frontend
+npm ci
+npm run build
+```
+
 ## Migrations
 ```bash
 # install once
