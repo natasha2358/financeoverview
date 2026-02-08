@@ -1,4 +1,5 @@
 using FinanceOverview.Api.Data;
+using FinanceOverview.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>();
+builder.Services.AddSingleton<ImportStorageService>();
 
 builder.Services.AddEndpointsApiExplorer();
 
