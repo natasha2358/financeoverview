@@ -10,8 +10,6 @@ public static class SeedData
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await dbContext.Database.MigrateAsync();
-
         if (await dbContext.Transactions.AnyAsync())
         {
             return;

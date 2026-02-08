@@ -1,4 +1,6 @@
 using FinanceOverview.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +15,19 @@ app.MapControllers();
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    await SeedData.EnsureSeededAsync(app.Services);
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+
+    var shouldSeedDemoData = app.Environment.IsDevelopment()
+        || app.Configuration.GetValue<bool>("SeedDemoData");
+
+    if (shouldSeedDemoData)
+    {
+        await SeedData.EnsureSeededAsync(app.Services);
+    }
 }
 
 app.Run();
