@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj
+
+      - name: Build
+        run: dotnet build FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-restore
+
+      - name: Test
+        run: dotnet test FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-build
+
+  frontend:
+    name: Frontend (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build

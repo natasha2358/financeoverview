@@ -2,14 +2,14 @@
 
 Milestone 1 scaffolding for the personal finance tracker. This repo contains:
 - React + TypeScript + Vite frontend scaffold.
-- ASP.NET Core (.NET 10) Web API scaffold using Controllers.
+- ASP.NET Core (.NET 8) Web API scaffold using Controllers.
 - SQLite + EF Core configured with an initial migration.
 
 > No PDF parsing is implemented yet.
 
 ## Prerequisites
 - Node.js 20+
-- .NET SDK 10 (preview) + `dotnet-ef` tool
+- .NET SDK 8 + `dotnet-ef` tool
 
 ## Run locally
 
@@ -28,6 +28,26 @@ dotnet run
 ```
 
 The API will be available at `http://localhost:5000/api/health` by default.
+
+## CI
+GitHub Actions runs on every push and pull request via `.github/workflows/ci.yml`. The workflow is intentionally minimal and runs two jobs:
+- **Backend (.NET):** restores, builds, and tests the API test project with .NET 8.
+- **Frontend (Vite):** installs dependencies with `npm ci` and builds the production bundle.
+Both jobs run without relying on seeded demo data.
+
+To run the same commands locally:
+```bash
+# backend
+cd backend
+dotnet restore FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj
+dotnet build FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-restore
+dotnet test FinanceOverview.Api.Tests/FinanceOverview.Api.Tests.csproj --no-build
+
+# frontend
+cd frontend
+npm ci
+npm run build
+```
 
 ## Migrations
 ```bash
