@@ -1,0 +1,37 @@
+:root {
+  font-family: "Inter", system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  padding: 2rem 2.5rem;
+  max-width: 420px;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  margin: 0;
+  color: #475569;
+}

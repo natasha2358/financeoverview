@@ -1,0 +1,16 @@
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# .NET
+**/bin/
+**/obj/
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
