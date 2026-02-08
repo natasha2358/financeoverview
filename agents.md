@@ -155,7 +155,11 @@ The app focuses on **monthly PDF imports + dashboards**, not real-time syncing.
   - migration commands
 - Document key decisions briefly in `/docs`.
 
----
+### Sandbox limitations
+- If dotnet SDK or npm install is unavailable in the Codex environment, do not block progress.
+- Provide clear local run/test commands and what to verify manually instead.
+- Prefer adding CI (GitHub Actions) to run tests reliably outside the sandbox.
+
 
 ## Codex output style
 - Start each response with a short checklist of planned actions.
