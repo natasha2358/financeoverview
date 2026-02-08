@@ -11,4 +11,6 @@ var app = builder.Build();
 
 app.MapControllers();
 
+await SeedData.EnsureSeededAsync(app.Services);
+
 app.Run();
