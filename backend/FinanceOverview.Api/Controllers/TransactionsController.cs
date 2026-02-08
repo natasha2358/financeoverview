@@ -36,6 +36,30 @@ public class TransactionsController : ControllerBase
         return Ok(transactions);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<TransactionDto>> GetById(int id)
+    {
+        var transaction = await _dbContext.Transactions
+            .AsNoTracking()
+            .Where(entry => entry.Id == id)
+            .Select(entry => new TransactionDto(
+                entry.Id,
+                entry.Date,
+                entry.RawDescription,
+                entry.Merchant,
+                entry.Amount,
+                entry.Currency,
+                entry.Balance))
+            .SingleOrDefaultAsync();
+
+        if (transaction is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(transaction);
+    }
+
     [HttpPost]
     public async Task<ActionResult<TransactionDto>> Create([FromBody] CreateTransactionRequest request)
     {
@@ -61,6 +85,6 @@ public class TransactionsController : ControllerBase
             transaction.Currency,
             transaction.Balance);
 
-        return Created($"/api/transactions/{transaction.Id}", response);
+        return CreatedAtAction(nameof(GetById), new { id = transaction.Id }, response);
     }
 }

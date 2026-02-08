@@ -83,4 +83,54 @@ public class TransactionsApiTests
         Assert.Equal(olderTransaction.Currency, payload[1].Currency);
         Assert.Equal(olderTransaction.Balance, payload[1].Balance);
     }
+
+    [Fact]
+    public async Task GetById_MissingTransaction_ReturnsNotFound()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/transactions/404");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_CreatesTransaction_ReturnsCreatedWithLocation()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        var request = new CreateTransactionRequest
+        {
+            Date = new DateOnly(2024, 2, 1),
+            RawDescription = "Lunch",
+            Merchant = "Cafe Uno",
+            Amount = -12.50m,
+            Currency = "EUR",
+            Balance = 150.25m
+        };
+
+        using var client = factory.CreateClient();
+        using var response = await client.PostAsJsonAsync("/api/transactions", request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(response.Headers.Location);
+
+        var payload = await response.Content.ReadFromJsonAsync<TransactionDto>();
+
+        Assert.NotNull(payload);
+        Assert.True(payload.Id > 0);
+        Assert.EndsWith($"/api/transactions/{payload.Id}", response.Headers.Location?.AbsolutePath);
+        Assert.Equal(request.Date, payload.Date);
+        Assert.Equal(request.RawDescription, payload.RawDescription);
+        Assert.Equal(request.Merchant, payload.Merchant);
+        Assert.Equal(request.Amount, payload.Amount);
+        Assert.Equal(request.Currency, payload.Currency);
+        Assert.Equal(request.Balance, payload.Balance);
+
+        using var getResponse = await client.GetAsync($"/api/transactions/{payload.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+    }
 }
