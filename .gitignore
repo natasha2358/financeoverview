@@ -12,5 +12,8 @@ frontend/.vite/
 *.db-shm
 *.db-wal
 
+# Upload storage
+**/App_Data/
+
 # OS
 .DS_Store

@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -26,5 +27,18 @@ public class AppDbContext : DbContext
             ?? "Data Source=financeoverview.db";
 
         optionsBuilder.UseSqlite(connectionString);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ImportBatch>()
+            .Property(batch => batch.Status)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<ImportBatch>()
+            .HasIndex(batch => new { batch.StatementMonth, batch.Sha256Hash })
+            .IsUnique();
     }
 }
