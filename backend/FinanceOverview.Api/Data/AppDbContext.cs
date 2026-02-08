@@ -36,5 +36,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ImportBatch>()
             .Property(batch => batch.Status)
             .HasConversion<string>();
+
+        modelBuilder.Entity<ImportBatch>()
+            .HasIndex(batch => new { batch.StatementMonth, batch.Sha256Hash })
+            .IsUnique();
     }
 }

@@ -64,6 +64,34 @@ public class StatementImportsApiTests
         Assert.Equal("statement.pdf", list[0].OriginalFileName);
     }
 
+    [Fact]
+    public async Task PostPdf_DuplicateUpload_ReturnsExistingBatch()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+        using var duplicateContent = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var firstResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        var firstPayload = await firstResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(firstPayload);
+
+        using var secondResponse = await client.PostAsync("/api/imports", duplicateContent);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+
+        var secondPayload = await secondResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(secondPayload);
+        Assert.Equal(firstPayload.Id, secondPayload.Id);
+
+        var list = await client.GetFromJsonAsync<List<ImportBatchDto>>("/api/imports");
+        Assert.NotNull(list);
+        Assert.Single(list);
+    }
+
     private static MultipartFormDataContent BuildMultipart(string fileName, string contentType)
     {
         var content = new MultipartFormDataContent();

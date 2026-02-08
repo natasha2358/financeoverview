@@ -46,6 +46,23 @@ public class StatementImportsController : ControllerBase
 
         var storedFile = await _storageService.SavePdfAsync(request.Pdf, cancellationToken);
 
+        var existingBatch = await _dbContext.ImportBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(batch =>
+                batch.StatementMonth == statementMonth
+                && batch.Sha256Hash == storedFile.Sha256Hash,
+                cancellationToken);
+
+        if (existingBatch is not null)
+        {
+            if (System.IO.File.Exists(storedFile.FullPath))
+            {
+                System.IO.File.Delete(storedFile.FullPath);
+            }
+
+            return Ok(ToDto(existingBatch));
+        }
+
         var importBatch = new ImportBatch
         {
             UploadedAt = DateTime.UtcNow,
