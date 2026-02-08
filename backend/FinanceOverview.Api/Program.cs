@@ -11,6 +11,11 @@ var app = builder.Build();
 
 app.MapControllers();
 
-await SeedData.EnsureSeededAsync(app.Services);
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    await SeedData.EnsureSeededAsync(app.Services);
+}
 
 app.Run();
+
+public partial class Program { }
