@@ -453,19 +453,6 @@ const App = () => {
                   </dl>
                 </section>
                 <section className="import-review__card">
-                  <h3>Parser diagnostics</h3>
-                  <dl className="import-review__meta">
-                    <dt>Parser key</dt>
-                    <dd>{selectedImport.parserKey ?? "Not detected"}</dd>
-                    <dt>Parsed rows</dt>
-                    <dd>{stagedDiagnostics?.count ?? "Not parsed yet"}</dd>
-                    <dt>First booking date</dt>
-                    <dd>{stagedDiagnostics?.firstDate ?? "—"}</dd>
-                    <dt>Last booking date</dt>
-                    <dd>{stagedDiagnostics?.lastDate ?? "—"}</dd>
-                  </dl>
-                </section>
-                <section className="import-review__card">
                   <div className="import-review__header">
                     <h3>Extracted text</h3>
                     {!selectedImport.extractedAtUtc ? (
@@ -503,6 +490,21 @@ const App = () => {
                 <section className="import-review__card">
                   <div className="import-review__header">
                     <h3>Staged transactions</h3>
+                  </div>
+                  <div>
+                    <h4>Diagnostics</h4>
+                    <dl className="import-review__meta">
+                      <dt>Import status</dt>
+                      <dd>{selectedImport.status}</dd>
+                      <dt>Detected format</dt>
+                      <dd>{selectedImport.parserKey ?? "Not detected"}</dd>
+                      <dt>Parsed rows</dt>
+                      <dd>{stagedDiagnostics?.count ?? "Not parsed yet"}</dd>
+                      <dt>First booking date</dt>
+                      <dd>{stagedDiagnostics?.firstDate ?? "—"}</dd>
+                      <dt>Last booking date</dt>
+                      <dd>{stagedDiagnostics?.lastDate ?? "—"}</dd>
+                    </dl>
                   </div>
                   {stagedLoading ? (
                     <p className="status">Loading staged transactions…</p>
