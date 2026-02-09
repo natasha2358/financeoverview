@@ -30,21 +30,14 @@ public sealed class DashboardSummaryService
             .Where(transaction => transaction.ImportBatchId == null
                 || committedImportBatchIds.Contains(transaction.ImportBatchId.Value));
 
-        var summary = await transactions
-            .GroupBy(_ => 1)
-            .Select(group => new
-            {
-                IncomeTotal = group.Where(transaction => transaction.Amount > 0).Sum(transaction => transaction.Amount),
-                ExpenseTotal = group.Where(transaction => transaction.Amount < 0).Sum(transaction => transaction.Amount),
-                NetTotal = group.Sum(transaction => transaction.Amount),
-                TransactionCount = group.Count()
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var amounts = await transactions
+            .Select(transaction => transaction.Amount)
+            .ToListAsync(cancellationToken);
 
-        var incomeTotal = summary?.IncomeTotal ?? 0m;
-        var expenseTotal = Math.Abs(summary?.ExpenseTotal ?? 0m);
-        var netTotal = summary?.NetTotal ?? 0m;
-        var transactionCount = summary?.TransactionCount ?? 0;
+        var incomeTotal = amounts.Where(amount => amount > 0).Sum();
+        var expenseTotal = Math.Abs(amounts.Where(amount => amount < 0).Sum());
+        var netTotal = amounts.Sum();
+        var transactionCount = amounts.Count;
 
         return new MonthlySummaryResponseDto(
             monthStart.ToString("yyyy-MM"),
