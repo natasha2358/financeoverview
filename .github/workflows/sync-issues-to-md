@@ -1,0 +1,73 @@
+name: Sync codex-ready issues to markdown
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  sync:
+    # Run only if the issue has the codex-ready label
+    if: contains(join(github.event.issue.labels.*.name, ','), 'codex-ready')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write issue to docs/issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Fetch full issue (body is usually present, but this is safest)
+            const { data } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issue.number,
+            });
+
+            const labels = (data.labels || []).map(l => (typeof l === 'string' ? l : l.name)).filter(Boolean);
+            const fileDir = path.join(process.cwd(), 'docs', 'issues');
+            const filePath = path.join(fileDir, `issue-${data.number}.md`);
+
+            fs.mkdirSync(fileDir, { recursive: true });
+
+            const md =
+`---
+issue: ${data.number}
+title: ${JSON.stringify(data.title)}
+state: ${data.state}
+created_at: ${data.created_at}
+updated_at: ${data.updated_at}
+url: ${data.html_url}
+labels: ${JSON.stringify(labels)}
+---
+
+# ${data.title}
+
+${data.body || ''}`.trim() + "\n";
+
+            fs.writeFileSync(filePath, md, 'utf8');
+            core.info(`Wrote ${filePath}`);
+
+      - name: Create or update PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/sync-issues-to-md
+          title: "chore: sync codex-ready issues to markdown"
+          commit-message: "chore: sync issues to markdown"
+          body: |
+            This PR updates `docs/issues/` with the latest content of issues labeled `codex-ready`.
+          labels: |
+            automation
