@@ -14,6 +14,7 @@ type Transaction = {
 type ImportBatch = {
   id: number;
   uploadedAt: string;
+  extractedAtUtc: string | null;
   originalFileName: string;
   statementMonth: string;
   status: string;
@@ -36,6 +37,12 @@ const App = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [statementMonth, setStatementMonth] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<number | null>(null);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [extractedTextLoading, setExtractedTextLoading] = useState(false);
+  const [extractedTextError, setExtractedTextError] = useState<string | null>(
+    null,
+  );
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const loadTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -98,6 +105,75 @@ const App = () => {
     () => formattedImports.find((item) => item.id === selectedImportId) ?? null,
     [formattedImports, selectedImportId],
   );
+
+  const loadExtractedText = useCallback(async (importId: number) => {
+    setExtractedTextLoading(true);
+    setExtractedTextError(null);
+    try {
+      const response = await fetch(`/api/imports/${importId}/extracted-text`);
+      if (response.status === 404) {
+        setExtractedText(null);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Unable to load extracted text.");
+      }
+      const text = await response.text();
+      setExtractedText(text);
+    } catch (fetchError) {
+      const message =
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Unexpected error while loading extracted text.";
+      setExtractedTextError(message);
+    } finally {
+      setExtractedTextLoading(false);
+    }
+  }, []);
+
+  const handleExtractText = useCallback(async () => {
+    if (!selectedImport) {
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractedTextError(null);
+    try {
+      const response = await fetch(
+        `/api/imports/${selectedImport.id}/extract-text`,
+        {
+          method: "POST",
+        },
+      );
+      if (!response.ok) {
+        const errorPayload = (await response.json()) as { error?: string };
+        throw new Error(
+          errorPayload.error ?? "Unable to extract text from the PDF.",
+        );
+      }
+
+      await loadImports();
+      await loadExtractedText(selectedImport.id);
+    } catch (extractError) {
+      const message =
+        extractError instanceof Error
+          ? extractError.message
+          : "Unexpected error while extracting text.";
+      setExtractedTextError(message);
+    } finally {
+      setIsExtracting(false);
+    }
+  }, [loadExtractedText, loadImports, selectedImport]);
+
+  useEffect(() => {
+    setExtractedText(null);
+    setExtractedTextError(null);
+    setExtractedTextLoading(false);
+
+    if (selectedImport?.extractedAtUtc) {
+      void loadExtractedText(selectedImport.id);
+    }
+  }, [loadExtractedText, selectedImport]);
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -280,13 +356,30 @@ const App = () => {
                   </dl>
                 </section>
                 <section className="import-review__card">
-                  <h3>Extracted text</h3>
-                  <p className="status">
-                    Text extraction will be shown here once parsing is enabled.
-                  </p>
-                  <div className="import-review__placeholder">
-                    No extracted text available yet.
+                  <div className="import-review__header">
+                    <h3>Extracted text</h3>
+                    {!selectedImport.extractedAtUtc ? (
+                      <button
+                        className="button button--ghost"
+                        type="button"
+                        onClick={handleExtractText}
+                        disabled={isExtracting}
+                      >
+                        {isExtracting ? "Extracting…" : "Extract text"}
+                      </button>
+                    ) : null}
                   </div>
+                  {extractedTextLoading ? (
+                    <p className="status">Loading extracted text…</p>
+                  ) : extractedTextError ? (
+                    <p className="status status--error">{extractedTextError}</p>
+                  ) : extractedText ? (
+                    <pre className="import-review__text">{extractedText}</pre>
+                  ) : (
+                    <div className="import-review__placeholder">
+                      No extracted text available yet.
+                    </div>
+                  )}
                 </section>
               </div>
             ) : (

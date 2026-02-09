@@ -3,6 +3,7 @@ namespace FinanceOverview.Api.Dtos;
 public sealed record ImportBatchDto(
     int Id,
     DateTime UploadedAt,
+    DateTime? ExtractedAtUtc,
     string OriginalFileName,
     DateOnly StatementMonth,
     string Status,
