@@ -141,7 +141,10 @@ public class StatementImportsController : ControllerBase
         await _extractedTextStorage.SaveExtractedTextAsync(importBatch.Id, extractedText, cancellationToken);
 
         importBatch.ExtractedAtUtc = DateTime.UtcNow;
-        importBatch.Status = ImportBatchStatus.Extracted;
+        if (importBatch.Status is ImportBatchStatus.Uploaded or ImportBatchStatus.Failed)
+        {
+            importBatch.Status = ImportBatchStatus.Extracted;
+        }
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(ToDto(importBatch));

@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using FinanceOverview.Api.Data;
 using FinanceOverview.Api.Dtos;
+using FinanceOverview.Api.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using System.Linq;
 
@@ -91,6 +94,39 @@ public class StatementImportsApiTests
 
         var text = await extractedTextResponse.Content.ReadAsStringAsync();
         Assert.Equal(FakePdfTextExtractor.ExtractedText, text);
+    }
+
+    [Fact]
+    public async Task PostExtractText_DoesNotDowngradeStatus()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var import = await dbContext.ImportBatches.FindAsync(created.Id);
+            Assert.NotNull(import);
+            import.Status = ImportBatchStatus.Parsed;
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var extractResponse = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+
+        var extractedPayload = await extractResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(extractedPayload);
+        Assert.Equal("Parsed", extractedPayload.Status);
+        Assert.NotNull(extractedPayload.ExtractedAtUtc);
     }
 
     [Fact]
