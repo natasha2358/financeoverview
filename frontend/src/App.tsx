@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Dashboard from "./Dashboard";
 
 type Transaction = {
   id: number;
@@ -47,6 +48,7 @@ type CommitImportResult = {
 type ViewMode = "transactions" | "imports" | "review";
 
 const App = () => {
+  const isDashboardRoute = window.location.pathname === "/dashboard";
   const [viewMode, setViewMode] = useState<ViewMode>("imports");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,9 +135,12 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isDashboardRoute) {
+      return;
+    }
     loadTransactions();
     loadImports();
-  }, [loadImports, loadTransactions]);
+  }, [isDashboardRoute, loadImports, loadTransactions]);
 
   const formattedImports = useMemo(
     () =>
@@ -416,6 +421,10 @@ const App = () => {
       setIsUploading(false);
     }
   };
+
+  if (isDashboardRoute) {
+    return <Dashboard />;
+  }
 
   return (
     <main className="app">
