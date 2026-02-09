@@ -19,19 +19,22 @@ public class StatementImportsController : ControllerBase
     private readonly ExtractedTextStorageService _extractedTextStorage;
     private readonly IPdfTextExtractor _textExtractor;
     private readonly IStatementParserSelector _parserSelector;
+    private readonly IStatementParserRegistry _parserRegistry;
 
     public StatementImportsController(
         AppDbContext dbContext,
         ImportStorageService storageService,
         ExtractedTextStorageService extractedTextStorage,
         IPdfTextExtractor textExtractor,
-        IStatementParserSelector parserSelector)
+        IStatementParserSelector parserSelector,
+        IStatementParserRegistry parserRegistry)
     {
         _dbContext = dbContext;
         _storageService = storageService;
         _extractedTextStorage = extractedTextStorage;
         _textExtractor = textExtractor;
         _parserSelector = parserSelector;
+        _parserRegistry = parserRegistry;
     }
 
     [HttpPost]
@@ -176,6 +179,83 @@ public class StatementImportsController : ControllerBase
         return PhysicalFile(extractedPath, "text/plain");
     }
 
+    [HttpPost("{id:int}/parse-to-staging")]
+    public async Task<ActionResult<IReadOnlyList<StagedTransactionDto>>> ParseToStaging(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var importBatch = await _dbContext.ImportBatches
+            .SingleOrDefaultAsync(batch => batch.Id == id, cancellationToken);
+
+        if (importBatch is null)
+        {
+            return NotFound();
+        }
+
+        var extractedPath = _extractedTextStorage.GetExtractedTextPath(id);
+        if (!System.IO.File.Exists(extractedPath))
+        {
+            return BadRequest(new { error = "Extracted text is required before parsing." });
+        }
+
+        var extractedText = await System.IO.File.ReadAllTextAsync(extractedPath, cancellationToken);
+        var parserKey = _parserSelector.SelectParserKey(importBatch, extractedText);
+
+        if (string.Equals(parserKey, DefaultStatementParserSelector.UnknownParserKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "Unsupported statement format." });
+        }
+
+        var parser = _parserRegistry.GetByKey(parserKey);
+        if (parser is null)
+        {
+            return BadRequest(new { error = $"Parser '{parserKey}' is not available." });
+        }
+
+        var existingRows = await _dbContext.StagedTransactions
+            .Where(row => row.ImportBatchId == id)
+            .ToListAsync(cancellationToken);
+        if (existingRows.Count > 0)
+        {
+            _dbContext.StagedTransactions.RemoveRange(existingRows);
+        }
+
+        var stagedRows = parser.Parse(importBatch.Id, extractedText);
+        _dbContext.StagedTransactions.AddRange(stagedRows);
+
+        importBatch.ParserKey = parserKey;
+        importBatch.Status = ImportBatchStatus.Parsed;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = stagedRows.Select(ToDto).ToList();
+        return Ok(response);
+    }
+
+    [HttpGet("{id:int}/staged-transactions")]
+    public async Task<ActionResult<IReadOnlyList<StagedTransactionDto>>> GetStagedTransactions(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var importExists = await _dbContext.ImportBatches
+            .AsNoTracking()
+            .AnyAsync(batch => batch.Id == id, cancellationToken);
+
+        if (!importExists)
+        {
+            return NotFound();
+        }
+
+        var rows = await _dbContext.StagedTransactions
+            .AsNoTracking()
+            .Where(row => row.ImportBatchId == id)
+            .OrderBy(row => row.RowIndex)
+            .Select(row => ToDto(row))
+            .ToListAsync(cancellationToken);
+
+        return Ok(rows);
+    }
+
     private static ImportBatchDto ToDto(ImportBatch batch)
     {
         return new ImportBatchDto(
@@ -188,6 +268,21 @@ public class StatementImportsController : ControllerBase
             batch.StorageKey,
             batch.Sha256Hash,
             batch.ParserKey);
+    }
+
+    private static StagedTransactionDto ToDto(StagedTransaction staged)
+    {
+        return new StagedTransactionDto(
+            staged.Id,
+            staged.ImportBatchId,
+            staged.RowIndex,
+            staged.BookingDate,
+            staged.ValueDate,
+            staged.RawDescription,
+            staged.Amount,
+            staged.Currency,
+            staged.RunningBalance,
+            staged.IsApproved);
     }
 
     private static bool IsPdf(IFormFile file)

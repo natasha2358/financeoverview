@@ -11,6 +11,7 @@ public class ImportBatch
     public string StorageKey { get; set; } = string.Empty;
     public string? Sha256Hash { get; set; }
     public string? ParserKey { get; set; }
+    public List<StagedTransaction> StagedTransactions { get; set; } = new();
 }
 
 public enum ImportBatchStatus

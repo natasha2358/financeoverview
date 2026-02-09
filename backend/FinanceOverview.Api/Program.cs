@@ -11,6 +11,8 @@ builder.Services.AddSingleton<ImportStorageService>();
 builder.Services.AddSingleton<ExtractedTextStorageService>();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
 builder.Services.AddSingleton<IStatementParserSelector, DefaultStatementParserSelector>();
+builder.Services.AddSingleton<IStatementParser, SparkasseHaspaV1Parser>();
+builder.Services.AddSingleton<IStatementParserRegistry, StatementParserRegistry>();
 
 builder.Services.AddEndpointsApiExplorer();
 
