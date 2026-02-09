@@ -1,7 +1,7 @@
-using FinanceOverview.Api.Data;
+using System.Globalization;
 using FinanceOverview.Api.Dtos;
+using FinanceOverview.Api.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FinanceOverview.Api.Controllers;
 
@@ -9,47 +9,29 @@ namespace FinanceOverview.Api.Controllers;
 [Route("api/dashboard")]
 public class DashboardController : ControllerBase
 {
-    private readonly AppDbContext _dbContext;
+    private readonly DashboardSummaryService _dashboardSummaryService;
 
-    public DashboardController(AppDbContext dbContext)
+    public DashboardController(DashboardSummaryService dashboardSummaryService)
     {
-        _dbContext = dbContext;
+        _dashboardSummaryService = dashboardSummaryService;
     }
 
     [HttpPost("monthly-summary")]
-    public async Task<ActionResult<IReadOnlyList<MonthlySummaryDto>>> PostMonthlySummary(
-        [FromBody] MonthlySummaryRequest? request)
+    public async Task<ActionResult<MonthlySummaryResponseDto>> GetMonthlySummary(
+        [FromBody] MonthlySummaryRequestDto request,
+        CancellationToken cancellationToken)
     {
-        var query = _dbContext.Transactions.AsNoTracking();
-
-        if (request?.StartDate is { } startDate)
+        if (!DateOnly.TryParseExact(
+                request.Month,
+                "yyyy-MM",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var monthStart))
         {
-            query = query.Where(transaction => transaction.Date >= startDate);
+            return ValidationProblem("Month must be in YYYY-MM format.");
         }
 
-        if (request?.EndDate is { } endDate)
-        {
-            query = query.Where(transaction => transaction.Date <= endDate);
-        }
-
-        var transactionData = await query
-            .Select(transaction => new { transaction.Date, transaction.Amount })
-            .ToListAsync();
-
-        var summaries = transactionData
-            .GroupBy(transaction => new { transaction.Date.Year, transaction.Date.Month })
-            .Select(group =>
-            {
-                var income = group.Where(entry => entry.Amount > 0).Sum(entry => entry.Amount);
-                var expenses = group.Where(entry => entry.Amount < 0).Sum(entry => Math.Abs(entry.Amount));
-                var net = income - expenses;
-                var monthStart = new DateOnly(group.Key.Year, group.Key.Month, 1);
-
-                return new MonthlySummaryDto(monthStart, income, expenses, net);
-            })
-            .OrderBy(summary => summary.Month)
-            .ToList();
-
-        return Ok(summaries);
+        var summary = await _dashboardSummaryService.GetMonthlySummaryAsync(monthStart, cancellationToken);
+        return Ok(summary);
     }
 }
