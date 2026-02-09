@@ -51,5 +51,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<StagedTransaction>()
             .Property(staged => staged.IsApproved)
             .HasDefaultValue(false);
+
+        modelBuilder.Entity<Transaction>()
+            .HasIndex(transaction => new { transaction.ImportBatchId, transaction.RowFingerprint })
+            .IsUnique()
+            .HasFilter("ImportBatchId IS NOT NULL AND RowFingerprint IS NOT NULL");
     }
 }

@@ -9,4 +9,6 @@ public class Transaction
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "EUR";
     public decimal? Balance { get; set; }
+    public int? ImportBatchId { get; set; }
+    public string? RowFingerprint { get; set; }
 }

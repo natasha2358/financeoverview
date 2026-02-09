@@ -71,6 +71,10 @@ p {
   color: #b91c1c;
 }
 
+.status--success {
+  color: #166534;
+}
+
 .imports {
   display: grid;
   gap: 2rem;
@@ -282,7 +286,7 @@ input[type="month"] {
 
 .staged-table__row {
   display: grid;
-  grid-template-columns: minmax(120px, 150px) minmax(200px, 1fr) minmax(120px, 140px) minmax(120px, 140px);
+  grid-template-columns: minmax(140px, 170px) minmax(120px, 150px) minmax(200px, 1fr) minmax(120px, 140px) minmax(120px, 140px);
   gap: 1rem;
   padding: 0.5rem 0.75rem;
   background: #ffffff;
@@ -290,6 +294,14 @@ input[type="month"] {
   border: 1px solid #e2e8f0;
   font-size: 0.9rem;
   align-items: center;
+}
+
+.staged-table__approval {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+  color: #1e293b;
 }
 
 .staged-table__row--head {

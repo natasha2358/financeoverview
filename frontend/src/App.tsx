@@ -36,6 +36,14 @@ type StagedTransaction = {
   isApproved: boolean;
 };
 
+type CommitImportResult = {
+  importBatchId: number;
+  approvedCount: number;
+  committedCount: number;
+  skippedCount: number;
+  status: string;
+};
+
 type ViewMode = "transactions" | "imports" | "review";
 
 const App = () => {
@@ -61,6 +69,9 @@ const App = () => {
   const [stagedLoading, setStagedLoading] = useState(false);
   const [stagedError, setStagedError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitMessage, setCommitMessage] = useState<string | null>(null);
+  const [commitError, setCommitError] = useState<string | null>(null);
   const stagedDiagnostics = useMemo(() => {
     if (stagedRows.length === 0) {
       return null;
@@ -74,6 +85,10 @@ const App = () => {
       lastDate: sortedByDate[sortedByDate.length - 1].bookingDate,
     };
   }, [stagedRows]);
+  const approvedCount = useMemo(
+    () => stagedRows.filter((row) => row.isApproved).length,
+    [stagedRows],
+  );
 
   const loadTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -246,6 +261,8 @@ const App = () => {
 
       const rows = (await response.json()) as StagedTransaction[];
       setStagedRows(rows);
+      setCommitMessage(null);
+      setCommitError(null);
       await loadImports();
     } catch (parseError) {
       const message =
@@ -258,6 +275,85 @@ const App = () => {
     }
   }, [loadImports, selectedImport]);
 
+  const handleApprovalChange = useCallback(
+    async (rowId: number, nextValue: boolean) => {
+      if (!selectedImport) {
+        return;
+      }
+
+      setStagedError(null);
+      try {
+        const response = await fetch(
+          `/api/imports/${selectedImport.id}/staged-transactions/${rowId}/approval`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ isApproved: nextValue }),
+          },
+        );
+
+        if (!response.ok) {
+          const errorPayload = (await response.json()) as { error?: string };
+          throw new Error(
+            errorPayload.error ?? "Unable to update the approval status.",
+          );
+        }
+
+        const updated = (await response.json()) as StagedTransaction;
+        setStagedRows((previous) =>
+          previous.map((row) => (row.id === updated.id ? updated : row)),
+        );
+      } catch (approvalError) {
+        const message =
+          approvalError instanceof Error
+            ? approvalError.message
+            : "Unexpected error while updating approvals.";
+        setStagedError(message);
+      }
+    },
+    [selectedImport],
+  );
+
+  const handleCommitApproved = useCallback(async () => {
+    if (!selectedImport) {
+      return;
+    }
+
+    setIsCommitting(true);
+    setCommitMessage(null);
+    setCommitError(null);
+    try {
+      const response = await fetch(`/api/imports/${selectedImport.id}/commit`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorPayload = (await response.json()) as { error?: string };
+        throw new Error(
+          errorPayload.error ?? "Unable to commit approved transactions.",
+        );
+      }
+
+      const result = (await response.json()) as CommitImportResult;
+      setCommitMessage(
+        `Committed ${result.committedCount} of ${result.approvedCount} approved rows (skipped ${result.skippedCount}).`,
+      );
+      await loadImports();
+      await loadTransactions();
+      await loadStagedRows(selectedImport.id);
+    } catch (commitError) {
+      const message =
+        commitError instanceof Error
+          ? commitError.message
+          : "Unexpected error while committing transactions.";
+      setCommitError(message);
+    } finally {
+      setIsCommitting(false);
+    }
+  }, [loadImports, loadStagedRows, loadTransactions, selectedImport]);
+
   useEffect(() => {
     setExtractedText(null);
     setExtractedTextError(null);
@@ -265,6 +361,8 @@ const App = () => {
     setStagedRows([]);
     setStagedError(null);
     setStagedLoading(false);
+    setCommitMessage(null);
+    setCommitError(null);
 
     if (selectedImport?.extractedAtUtc) {
       void loadExtractedText(selectedImport.id);
@@ -490,6 +588,14 @@ const App = () => {
                 <section className="import-review__card">
                   <div className="import-review__header">
                     <h3>Staged transactions</h3>
+                    <button
+                      className="button button--ghost"
+                      type="button"
+                      onClick={handleCommitApproved}
+                      disabled={isCommitting || approvedCount === 0}
+                    >
+                      {isCommitting ? "Committing…" : "Commit approved"}
+                    </button>
                   </div>
                   <div>
                     <h4>Diagnostics</h4>
@@ -517,6 +623,7 @@ const App = () => {
                   ) : (
                     <div className="staged-table">
                       <div className="staged-table__row staged-table__row--head">
+                        <span>Approve</span>
                         <span>Date</span>
                         <span>Description</span>
                         <span>Amount</span>
@@ -524,6 +631,19 @@ const App = () => {
                       </div>
                       {stagedRows.map((row) => (
                         <div className="staged-table__row" key={row.id}>
+                          <label className="staged-table__approval">
+                            <input
+                              type="checkbox"
+                              checked={row.isApproved}
+                              onChange={(event) =>
+                                handleApprovalChange(
+                                  row.id,
+                                  event.target.checked,
+                                )
+                              }
+                            />
+                            <span>{row.isApproved ? "Approved" : "Rejected"}</span>
+                          </label>
                           <span>{row.bookingDate}</span>
                           <span>{row.rawDescription}</span>
                           <span>
@@ -539,6 +659,12 @@ const App = () => {
                       ))}
                     </div>
                   )}
+                  {commitMessage ? (
+                    <p className="status status--success">{commitMessage}</p>
+                  ) : null}
+                  {commitError ? (
+                    <p className="status status--error">{commitError}</p>
+                  ) : null}
                 </section>
               </div>
             ) : (
