@@ -4,6 +4,7 @@ public class ImportBatch
 {
     public int Id { get; set; }
     public DateTime UploadedAt { get; set; }
+    public DateTime? ExtractedAtUtc { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;
     public DateOnly StatementMonth { get; set; }
     public ImportBatchStatus Status { get; set; } = ImportBatchStatus.Uploaded;
@@ -14,6 +15,7 @@ public class ImportBatch
 public enum ImportBatchStatus
 {
     Uploaded,
+    Extracted,
     Parsed,
     Committed,
     Failed

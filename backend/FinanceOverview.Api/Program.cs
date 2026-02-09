@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>();
 builder.Services.AddSingleton<ImportStorageService>();
+builder.Services.AddSingleton<ExtractedTextStorageService>();
+builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
 
 builder.Services.AddEndpointsApiExplorer();
 

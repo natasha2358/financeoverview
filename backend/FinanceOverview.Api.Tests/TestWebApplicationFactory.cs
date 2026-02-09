@@ -1,4 +1,5 @@
 using FinanceOverview.Api.Data;
+using FinanceOverview.Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -30,6 +31,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection));
+            services.AddSingleton<IPdfTextExtractor, FakePdfTextExtractor>();
         });
     }
 

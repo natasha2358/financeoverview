@@ -10,6 +10,90 @@ namespace FinanceOverview.Api.Tests;
 public class StatementImportsApiTests
 {
     [Fact]
+    public async Task PostExtractText_UpdatesMetadata()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using var extractResponse = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+
+        var extractedPayload = await extractResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(extractedPayload);
+        Assert.Equal("Extracted", extractedPayload.Status);
+        Assert.NotNull(extractedPayload.ExtractedAtUtc);
+
+        var refreshed = await client.GetFromJsonAsync<ImportBatchDto>($"/api/imports/{created.Id}");
+        Assert.NotNull(refreshed);
+        Assert.Equal("Extracted", refreshed.Status);
+        Assert.NotNull(refreshed.ExtractedAtUtc);
+    }
+
+    [Fact]
+    public async Task GetExtractedText_ReturnsContentAfterExtraction()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using var extractResponse = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+
+        using var extractedTextResponse =
+            await client.GetAsync($"/api/imports/{created.Id}/extracted-text");
+        Assert.Equal(HttpStatusCode.OK, extractedTextResponse.StatusCode);
+
+        var text = await extractedTextResponse.Content.ReadAsStringAsync();
+        Assert.Equal(FakePdfTextExtractor.ExtractedText, text);
+    }
+
+    [Fact]
+    public async Task PostExtractText_CanBeCalledTwice()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using var firstExtract = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, firstExtract.StatusCode);
+
+        using var secondExtract = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, secondExtract.StatusCode);
+
+        using var extractedTextResponse =
+            await client.GetAsync($"/api/imports/{created.Id}/extracted-text");
+        Assert.Equal(HttpStatusCode.OK, extractedTextResponse.StatusCode);
+
+        var text = await extractedTextResponse.Content.ReadAsStringAsync();
+        Assert.Equal(FakePdfTextExtractor.ExtractedText, text);
+    }
+
+    [Fact]
     public async Task PostPdf_CreatesImportBatch()
     {
         using var factory = new TestWebApplicationFactory();

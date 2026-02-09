@@ -9,11 +9,13 @@ public sealed record StoredImportFile(string StorageKey, string FullPath, string
 public sealed class ImportStorageService
 {
     private const string UploadsFolderName = "uploads";
+    private readonly string _contentRoot;
     private readonly string _uploadsRoot;
 
     public ImportStorageService(IWebHostEnvironment environment)
     {
-        _uploadsRoot = Path.Combine(environment.ContentRootPath, "App_Data", UploadsFolderName);
+        _contentRoot = environment.ContentRootPath;
+        _uploadsRoot = Path.Combine(_contentRoot, "App_Data", UploadsFolderName);
         Directory.CreateDirectory(_uploadsRoot);
     }
 
@@ -40,5 +42,10 @@ public sealed class ImportStorageService
         var hash = Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>()).ToLowerInvariant();
 
         return new StoredImportFile(storageKey, fullPath, hash);
+    }
+
+    public string ResolveStoragePath(string storageKey)
+    {
+        return Path.Combine(_contentRoot, storageKey);
     }
 }

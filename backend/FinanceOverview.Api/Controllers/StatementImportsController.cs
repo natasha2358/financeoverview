@@ -16,11 +16,19 @@ public class StatementImportsController : ControllerBase
     private static readonly string[] AllowedContentTypes = ["application/pdf"];
     private readonly AppDbContext _dbContext;
     private readonly ImportStorageService _storageService;
+    private readonly ExtractedTextStorageService _extractedTextStorage;
+    private readonly IPdfTextExtractor _textExtractor;
 
-    public StatementImportsController(AppDbContext dbContext, ImportStorageService storageService)
+    public StatementImportsController(
+        AppDbContext dbContext,
+        ImportStorageService storageService,
+        ExtractedTextStorageService extractedTextStorage,
+        IPdfTextExtractor textExtractor)
     {
         _dbContext = dbContext;
         _storageService = storageService;
+        _extractedTextStorage = extractedTextStorage;
+        _textExtractor = textExtractor;
     }
 
     [HttpPost]
@@ -111,11 +119,62 @@ public class StatementImportsController : ControllerBase
         return Ok(importBatch);
     }
 
+    [HttpPost("{id:int}/extract-text")]
+    public async Task<ActionResult<ImportBatchDto>> ExtractText(int id, CancellationToken cancellationToken)
+    {
+        var importBatch = await _dbContext.ImportBatches
+            .SingleOrDefaultAsync(batch => batch.Id == id, cancellationToken);
+
+        if (importBatch is null)
+        {
+            return NotFound();
+        }
+
+        var pdfPath = _storageService.ResolveStoragePath(importBatch.StorageKey);
+
+        if (!System.IO.File.Exists(pdfPath))
+        {
+            return NotFound(new { error = "Stored PDF not found." });
+        }
+
+        var extractedText = await _textExtractor.ExtractTextAsync(pdfPath, cancellationToken);
+        await _extractedTextStorage.SaveExtractedTextAsync(importBatch.Id, extractedText, cancellationToken);
+
+        importBatch.ExtractedAtUtc = DateTime.UtcNow;
+        importBatch.Status = ImportBatchStatus.Extracted;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(ToDto(importBatch));
+    }
+
+    [HttpGet("{id:int}/extracted-text")]
+    public async Task<IActionResult> GetExtractedText(int id, CancellationToken cancellationToken)
+    {
+        var importExists = await _dbContext.ImportBatches
+            .AsNoTracking()
+            .AnyAsync(batch => batch.Id == id, cancellationToken);
+
+        if (!importExists)
+        {
+            return NotFound();
+        }
+
+        var extractedPath = _extractedTextStorage.GetExtractedTextPath(id);
+
+        if (!System.IO.File.Exists(extractedPath))
+        {
+            return NotFound();
+        }
+
+        return PhysicalFile(extractedPath, "text/plain");
+    }
+
     private static ImportBatchDto ToDto(ImportBatch batch)
     {
         return new ImportBatchDto(
             batch.Id,
             batch.UploadedAt,
+            batch.ExtractedAtUtc,
             batch.OriginalFileName,
             batch.StatementMonth,
             batch.Status.ToString(),
