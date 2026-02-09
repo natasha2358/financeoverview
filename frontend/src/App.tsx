@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Dashboard from "./Dashboard";
 
 type Transaction = {
   id: number;
@@ -207,9 +208,12 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isDashboardRoute) {
+      return;
+    }
     loadTransactions();
     loadImports();
-  }, [loadImports, loadTransactions]);
+  }, [isDashboardRoute, loadImports, loadTransactions]);
 
   useEffect(() => {
     localStorage.setItem("rulesMonth", rulesMonth);
@@ -655,6 +659,10 @@ const App = () => {
       setIsUploading(false);
     }
   };
+
+  if (isDashboardRoute) {
+    return <Dashboard />;
+  }
 
   return (
     <main className="app">
