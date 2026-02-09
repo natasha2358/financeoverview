@@ -61,6 +61,19 @@ const App = () => {
   const [stagedLoading, setStagedLoading] = useState(false);
   const [stagedError, setStagedError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const stagedDiagnostics = useMemo(() => {
+    if (stagedRows.length === 0) {
+      return null;
+    }
+    const sortedByDate = [...stagedRows].sort((left, right) =>
+      left.bookingDate.localeCompare(right.bookingDate),
+    );
+    return {
+      count: stagedRows.length,
+      firstDate: sortedByDate[0].bookingDate,
+      lastDate: sortedByDate[sortedByDate.length - 1].bookingDate,
+    };
+  }, [stagedRows]);
 
   const loadTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -437,6 +450,19 @@ const App = () => {
                     <dd>{selectedImport.storageKey}</dd>
                     <dt>SHA-256 hash</dt>
                     <dd>{selectedImport.sha256Hash ?? "Pending"}</dd>
+                  </dl>
+                </section>
+                <section className="import-review__card">
+                  <h3>Parser diagnostics</h3>
+                  <dl className="import-review__meta">
+                    <dt>Parser key</dt>
+                    <dd>{selectedImport.parserKey ?? "Not detected"}</dd>
+                    <dt>Parsed rows</dt>
+                    <dd>{stagedDiagnostics?.count ?? "Not parsed yet"}</dd>
+                    <dt>First booking date</dt>
+                    <dd>{stagedDiagnostics?.firstDate ?? "—"}</dd>
+                    <dt>Last booking date</dt>
+                    <dd>{stagedDiagnostics?.lastDate ?? "—"}</dd>
                   </dl>
                 </section>
                 <section className="import-review__card">
