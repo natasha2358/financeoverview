@@ -11,9 +11,7 @@ public class ImportBatch
     public string StorageKey { get; set; } = string.Empty;
     public string? Sha256Hash { get; set; }
     public string? ParserKey { get; set; }
-    public int? ParsedRowCount { get; set; }
-    public DateOnly? FirstBookingDate { get; set; }
-    public DateOnly? LastBookingDate { get; set; }
+    public List<StagedTransaction> StagedTransactions { get; set; } = new();
 }
 
 public enum ImportBatchStatus

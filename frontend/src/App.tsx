@@ -20,10 +20,20 @@ type ImportBatch = {
   status: string;
   storageKey: string;
   sha256Hash: string | null;
-  parserKey: string | null;
-  parsedRowCount: number | null;
-  firstBookingDate: string | null;
-  lastBookingDate: string | null;
+  parserKey?: string | null;
+};
+
+type StagedTransaction = {
+  id: number;
+  importBatchId: number;
+  rowIndex: number;
+  bookingDate: string;
+  valueDate: string | null;
+  rawDescription: string;
+  amount: number;
+  currency: string | null;
+  runningBalance: number | null;
+  isApproved: boolean;
 };
 
 type ViewMode = "transactions" | "imports" | "review";
@@ -47,6 +57,10 @@ const App = () => {
     null,
   );
   const [isExtracting, setIsExtracting] = useState(false);
+  const [stagedRows, setStagedRows] = useState<StagedTransaction[]>([]);
+  const [stagedLoading, setStagedLoading] = useState(false);
+  const [stagedError, setStagedError] = useState<string | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
 
   const loadTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -145,6 +159,33 @@ const App = () => {
     }
   }, []);
 
+  const loadStagedRows = useCallback(async (importId: number) => {
+    setStagedLoading(true);
+    setStagedError(null);
+    try {
+      const response = await fetch(
+        `/api/imports/${importId}/staged-transactions`,
+      );
+      if (response.status === 404) {
+        setStagedRows([]);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Unable to load staged transactions.");
+      }
+      const rows = (await response.json()) as StagedTransaction[];
+      setStagedRows(rows);
+    } catch (fetchError) {
+      const message =
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Unexpected error while loading staged transactions.";
+      setStagedError(message);
+    } finally {
+      setStagedLoading(false);
+    }
+  }, []);
+
   const handleExtractText = useCallback(async () => {
     if (!selectedImport) {
       return;
@@ -179,15 +220,54 @@ const App = () => {
     }
   }, [loadExtractedText, loadImports, selectedImport]);
 
+  const handleParseToStaging = useCallback(async () => {
+    if (!selectedImport) {
+      return;
+    }
+
+    setIsParsing(true);
+    setStagedError(null);
+    try {
+      const response = await fetch(
+        `/api/imports/${selectedImport.id}/parse-to-staging`,
+        {
+          method: "POST",
+        },
+      );
+      if (!response.ok) {
+        const errorPayload = (await response.json()) as { error?: string };
+        throw new Error(
+          errorPayload.error ?? "Unable to parse staged transactions.",
+        );
+      }
+
+      const rows = (await response.json()) as StagedTransaction[];
+      setStagedRows(rows);
+      await loadImports();
+    } catch (parseError) {
+      const message =
+        parseError instanceof Error
+          ? parseError.message
+          : "Unexpected error while parsing staged transactions.";
+      setStagedError(message);
+    } finally {
+      setIsParsing(false);
+    }
+  }, [loadImports, selectedImport]);
+
   useEffect(() => {
     setExtractedText(null);
     setExtractedTextError(null);
     setExtractedTextLoading(false);
+    setStagedRows([]);
+    setStagedError(null);
+    setStagedLoading(false);
 
     if (selectedImport?.extractedAtUtc) {
       void loadExtractedText(selectedImport.id);
+      void loadStagedRows(selectedImport.id);
     }
-  }, [loadExtractedText, selectedImport]);
+  }, [loadExtractedText, loadStagedRows, selectedImport]);
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -406,7 +486,16 @@ const App = () => {
                       >
                         {isExtracting ? "Extracting…" : "Extract text"}
                       </button>
-                    ) : null}
+                    ) : (
+                      <button
+                        className="button button--ghost"
+                        type="button"
+                        onClick={handleParseToStaging}
+                        disabled={isParsing}
+                      >
+                        {isParsing ? "Parsing…" : "Parse to staging"}
+                      </button>
+                    )}
                   </div>
                   {extractedTextLoading ? (
                     <p className="status">Loading extracted text…</p>
@@ -417,6 +506,44 @@ const App = () => {
                   ) : (
                     <div className="import-review__placeholder">
                       No extracted text available yet.
+                    </div>
+                  )}
+                </section>
+                <section className="import-review__card">
+                  <div className="import-review__header">
+                    <h3>Staged transactions</h3>
+                  </div>
+                  {stagedLoading ? (
+                    <p className="status">Loading staged transactions…</p>
+                  ) : stagedError ? (
+                    <p className="status status--error">{stagedError}</p>
+                  ) : stagedRows.length === 0 ? (
+                    <div className="import-review__placeholder">
+                      No staged transactions yet.
+                    </div>
+                  ) : (
+                    <div className="staged-table">
+                      <div className="staged-table__row staged-table__row--head">
+                        <span>Date</span>
+                        <span>Description</span>
+                        <span>Amount</span>
+                        <span>Balance</span>
+                      </div>
+                      {stagedRows.map((row) => (
+                        <div className="staged-table__row" key={row.id}>
+                          <span>{row.bookingDate}</span>
+                          <span>{row.rawDescription}</span>
+                          <span>
+                            {row.amount.toFixed(2)}{" "}
+                            {row.currency ?? "EUR"}
+                          </span>
+                          <span>
+                            {row.runningBalance === null
+                              ? "—"
+                              : row.runningBalance.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </section>

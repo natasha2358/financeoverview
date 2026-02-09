@@ -228,7 +228,7 @@ public class StatementImportsApiTests
         Assert.Single(list);
     }
 
-    private static MultipartFormDataContent BuildMultipart(string fileName, string contentType)
+    public static MultipartFormDataContent BuildMultipart(string fileName, string contentType)
     {
         var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent("%PDF-1.4 test".Select(c => (byte)c).ToArray());

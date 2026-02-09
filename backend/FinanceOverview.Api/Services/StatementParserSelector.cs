@@ -13,6 +13,18 @@ public sealed class DefaultStatementParserSelector : IStatementParserSelector
 
     public string SelectParserKey(ImportBatch importBatch, string extractedText)
     {
+        if (SparkasseHaspaV1ParserDetects(extractedText))
+        {
+            return SparkasseHaspaV1Parser.ParserKeyValue;
+        }
+
         return UnknownParserKey;
+    }
+
+    private static bool SparkasseHaspaV1ParserDetects(string extractedText)
+    {
+        return extractedText.Contains("HASPA", StringComparison.OrdinalIgnoreCase)
+            || extractedText.Contains("Sparkasse", StringComparison.OrdinalIgnoreCase)
+            || extractedText.Contains("Hamburger Sparkasse", StringComparison.OrdinalIgnoreCase);
     }
 }
