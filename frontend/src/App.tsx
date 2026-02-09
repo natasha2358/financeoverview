@@ -21,7 +21,7 @@ type ImportBatch = {
   sha256Hash: string | null;
 };
 
-type ViewMode = "transactions" | "imports";
+type ViewMode = "transactions" | "imports" | "review";
 
 const App = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("imports");
@@ -35,6 +35,7 @@ const App = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [statementMonth, setStatementMonth] = useState("");
+  const [selectedImportId, setSelectedImportId] = useState<number | null>(null);
 
   const loadTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -91,6 +92,11 @@ const App = () => {
         displayUploadedAt: new Date(item.uploadedAt).toLocaleString(),
       })),
     [imports],
+  );
+
+  const selectedImport = useMemo(
+    () => formattedImports.find((item) => item.id === selectedImportId) ?? null,
+    [formattedImports, selectedImportId],
   );
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
@@ -219,12 +225,73 @@ const App = () => {
                           {item.displayUploadedAt}
                         </div>
                       </div>
-                      <span className="badge">{item.status}</span>
+                      <div className="import-list__actions">
+                        <span className="badge">{item.status}</span>
+                        <button
+                          className="button button--ghost"
+                          type="button"
+                          onClick={() => {
+                            setSelectedImportId(item.id);
+                            setViewMode("review");
+                          }}
+                        >
+                          Review
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
+          </div>
+        ) : viewMode === "review" ? (
+          <div className="import-review">
+            <button
+              className="button button--ghost"
+              type="button"
+              onClick={() => setViewMode("imports")}
+            >
+              ← Back to imports
+            </button>
+            <header>
+              <h2>Import review</h2>
+              <p>
+                Confirm the PDF metadata and review extracted text before
+                committing transactions.
+              </p>
+            </header>
+            {selectedImport ? (
+              <div className="import-review__grid">
+                <section className="import-review__card">
+                  <h3>PDF metadata</h3>
+                  <dl className="import-review__meta">
+                    <dt>File name</dt>
+                    <dd>{selectedImport.originalFileName}</dd>
+                    <dt>Statement month</dt>
+                    <dd>{selectedImport.displayMonth}</dd>
+                    <dt>Uploaded</dt>
+                    <dd>{selectedImport.displayUploadedAt}</dd>
+                    <dt>Status</dt>
+                    <dd>{selectedImport.status}</dd>
+                    <dt>Storage key</dt>
+                    <dd>{selectedImport.storageKey}</dd>
+                    <dt>SHA-256 hash</dt>
+                    <dd>{selectedImport.sha256Hash ?? "Pending"}</dd>
+                  </dl>
+                </section>
+                <section className="import-review__card">
+                  <h3>Extracted text</h3>
+                  <p className="status">
+                    Text extraction will be shown here once parsing is enabled.
+                  </p>
+                  <div className="import-review__placeholder">
+                    No extracted text available yet.
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <p className="status">Select an import to review.</p>
+            )}
           </div>
         ) : (
           <div className="transactions">
