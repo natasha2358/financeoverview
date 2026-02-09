@@ -10,6 +10,7 @@ public class ImportBatch
     public ImportBatchStatus Status { get; set; } = ImportBatchStatus.Uploaded;
     public string StorageKey { get; set; } = string.Empty;
     public string? Sha256Hash { get; set; }
+    public string? ParserKey { get; set; }
 }
 
 public enum ImportBatchStatus

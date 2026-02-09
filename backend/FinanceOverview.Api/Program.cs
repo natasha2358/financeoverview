@@ -10,6 +10,7 @@ builder.Services.AddDbContext<AppDbContext>();
 builder.Services.AddSingleton<ImportStorageService>();
 builder.Services.AddSingleton<ExtractedTextStorageService>();
 builder.Services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+builder.Services.AddSingleton<IStatementParserSelector, DefaultStatementParserSelector>();
 
 builder.Services.AddEndpointsApiExplorer();
 
