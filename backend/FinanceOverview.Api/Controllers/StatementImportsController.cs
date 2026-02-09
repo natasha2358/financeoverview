@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using FinanceOverview.Api.Data;
 using FinanceOverview.Api.Dtos;
 using FinanceOverview.Api.Models;
@@ -14,6 +15,15 @@ namespace FinanceOverview.Api.Controllers;
 public class StatementImportsController : ControllerBase
 {
     private static readonly string[] AllowedContentTypes = ["application/pdf"];
+    private static readonly string[] SupportedBookingDateFormats =
+    [
+        "yyyy-MM-dd",
+        "dd/MM/yyyy",
+        "dd.MM.yyyy",
+        "dd-MM-yyyy"
+    ];
+    private static readonly Regex BookingDateRegex =
+        new(@"\b(\d{4}-\d{2}-\d{2}|\d{2}[./-]\d{2}[./-]\d{4})\b", RegexOptions.Compiled);
     private readonly AppDbContext _dbContext;
     private readonly ImportStorageService _storageService;
     private readonly ExtractedTextStorageService _extractedTextStorage;
@@ -145,7 +155,21 @@ public class StatementImportsController : ControllerBase
 
         importBatch.ExtractedAtUtc = DateTime.UtcNow;
         importBatch.ParserKey ??= _parserSelector.SelectParserKey(importBatch, extractedText);
-        if (importBatch.Status is ImportBatchStatus.Uploaded or ImportBatchStatus.Failed)
+        var diagnostics = ExtractDiagnostics(extractedText);
+        if (diagnostics is not null)
+        {
+            importBatch.ParsedRowCount = diagnostics.RowCount;
+            importBatch.FirstBookingDate = diagnostics.FirstBookingDate;
+            importBatch.LastBookingDate = diagnostics.LastBookingDate;
+
+            if (importBatch.Status is ImportBatchStatus.Uploaded
+                or ImportBatchStatus.Extracted
+                or ImportBatchStatus.Failed)
+            {
+                importBatch.Status = ImportBatchStatus.Parsed;
+            }
+        }
+        else if (importBatch.Status is ImportBatchStatus.Uploaded or ImportBatchStatus.Failed)
         {
             importBatch.Status = ImportBatchStatus.Extracted;
         }
@@ -187,7 +211,10 @@ public class StatementImportsController : ControllerBase
             batch.Status.ToString(),
             batch.StorageKey,
             batch.Sha256Hash,
-            batch.ParserKey);
+            batch.ParserKey,
+            batch.ParsedRowCount,
+            batch.FirstBookingDate,
+            batch.LastBookingDate);
     }
 
     private static bool IsPdf(IFormFile file)
@@ -196,6 +223,41 @@ public class StatementImportsController : ControllerBase
         return AllowedContentTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase)
             || string.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static ImportBatchDiagnostics? ExtractDiagnostics(string extractedText)
+    {
+        var dates = BookingDateRegex.Matches(extractedText)
+            .Select(match => match.Value)
+            .Select(value => TryParseBookingDate(value, out var date) ? date : (DateOnly?)null)
+            .Where(date => date.HasValue)
+            .Select(date => date!.Value)
+            .ToList();
+
+        if (dates.Count == 0)
+        {
+            return null;
+        }
+
+        return new ImportBatchDiagnostics(
+            dates.Count,
+            dates.Min(),
+            dates.Max());
+    }
+
+    private static bool TryParseBookingDate(string value, out DateOnly date)
+    {
+        return DateOnly.TryParseExact(
+            value,
+            SupportedBookingDateFormats,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out date);
+    }
+
+    private sealed record ImportBatchDiagnostics(
+        int RowCount,
+        DateOnly FirstBookingDate,
+        DateOnly LastBookingDate);
 
     private static bool TryParseStatementMonth(string value, out DateOnly statementMonth)
     {

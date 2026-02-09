@@ -9,4 +9,7 @@ public sealed record ImportBatchDto(
     string Status,
     string StorageKey,
     string? Sha256Hash,
-    string? ParserKey);
+    string? ParserKey,
+    int? ParsedRowCount,
+    DateOnly? FirstBookingDate,
+    DateOnly? LastBookingDate);

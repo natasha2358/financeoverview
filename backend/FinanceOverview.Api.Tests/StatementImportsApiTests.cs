@@ -32,13 +32,19 @@ public class StatementImportsApiTests
 
         var extractedPayload = await extractResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
         Assert.NotNull(extractedPayload);
-        Assert.Equal("Extracted", extractedPayload.Status);
+        Assert.Equal("Parsed", extractedPayload.Status);
         Assert.NotNull(extractedPayload.ExtractedAtUtc);
+        Assert.Equal(2, extractedPayload.ParsedRowCount);
+        Assert.Equal(new DateOnly(2026, 2, 1), extractedPayload.FirstBookingDate);
+        Assert.Equal(new DateOnly(2026, 2, 3), extractedPayload.LastBookingDate);
 
         var refreshed = await client.GetFromJsonAsync<ImportBatchDto>($"/api/imports/{created.Id}");
         Assert.NotNull(refreshed);
-        Assert.Equal("Extracted", refreshed.Status);
+        Assert.Equal("Parsed", refreshed.Status);
         Assert.NotNull(refreshed.ExtractedAtUtc);
+        Assert.Equal(2, refreshed.ParsedRowCount);
+        Assert.Equal(new DateOnly(2026, 2, 1), refreshed.FirstBookingDate);
+        Assert.Equal(new DateOnly(2026, 2, 3), refreshed.LastBookingDate);
     }
 
     [Fact]
@@ -88,6 +94,13 @@ public class StatementImportsApiTests
         using var secondExtract = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
         Assert.Equal(HttpStatusCode.OK, secondExtract.StatusCode);
 
+        var extractedPayload = await secondExtract.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(extractedPayload);
+        Assert.Equal("Parsed", extractedPayload.Status);
+        Assert.Equal(2, extractedPayload.ParsedRowCount);
+        Assert.Equal(new DateOnly(2026, 2, 1), extractedPayload.FirstBookingDate);
+        Assert.Equal(new DateOnly(2026, 2, 3), extractedPayload.LastBookingDate);
+
         using var extractedTextResponse =
             await client.GetAsync($"/api/imports/{created.Id}/extracted-text");
         Assert.Equal(HttpStatusCode.OK, extractedTextResponse.StatusCode);
@@ -127,6 +140,9 @@ public class StatementImportsApiTests
         Assert.NotNull(extractedPayload);
         Assert.Equal("Parsed", extractedPayload.Status);
         Assert.NotNull(extractedPayload.ExtractedAtUtc);
+        Assert.Equal(2, extractedPayload.ParsedRowCount);
+        Assert.Equal(new DateOnly(2026, 2, 1), extractedPayload.FirstBookingDate);
+        Assert.Equal(new DateOnly(2026, 2, 3), extractedPayload.LastBookingDate);
     }
 
     [Fact]

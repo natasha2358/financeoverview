@@ -20,6 +20,10 @@ type ImportBatch = {
   status: string;
   storageKey: string;
   sha256Hash: string | null;
+  parserKey: string | null;
+  parsedRowCount: number | null;
+  firstBookingDate: string | null;
+  lastBookingDate: string | null;
 };
 
 type ViewMode = "transactions" | "imports" | "review";
@@ -105,6 +109,16 @@ const App = () => {
     () => formattedImports.find((item) => item.id === selectedImportId) ?? null,
     [formattedImports, selectedImportId],
   );
+
+  const parserDiagnosticsPlaceholder = useMemo(() => {
+    if (!selectedImport) {
+      return null;
+    }
+
+    return ["Parsed", "Committed"].includes(selectedImport.status)
+      ? "Unavailable"
+      : "Not parsed yet";
+  }, [selectedImport]);
 
   const loadExtractedText = useCallback(async (importId: number) => {
     setExtractedTextLoading(true);
@@ -353,6 +367,31 @@ const App = () => {
                     <dd>{selectedImport.storageKey}</dd>
                     <dt>SHA-256 hash</dt>
                     <dd>{selectedImport.sha256Hash ?? "Pending"}</dd>
+                  </dl>
+                </section>
+                <section className="import-review__card">
+                  <h3>Parser diagnostics</h3>
+                  <dl className="import-review__meta">
+                    <dt>Parser key</dt>
+                    <dd>{selectedImport.parserKey ?? "Pending"}</dd>
+                    <dt>Parsed rows</dt>
+                    <dd>
+                      {selectedImport.parsedRowCount
+                        ?? parserDiagnosticsPlaceholder
+                        ?? "Not parsed yet"}
+                    </dd>
+                    <dt>First booking date</dt>
+                    <dd>
+                      {selectedImport.firstBookingDate
+                        ?? parserDiagnosticsPlaceholder
+                        ?? "Not parsed yet"}
+                    </dd>
+                    <dt>Last booking date</dt>
+                    <dd>
+                      {selectedImport.lastBookingDate
+                        ?? parserDiagnosticsPlaceholder
+                        ?? "Not parsed yet"}
+                    </dd>
                   </dl>
                 </section>
                 <section className="import-review__card">
