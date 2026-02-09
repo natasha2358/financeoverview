@@ -11,54 +11,49 @@ permissions:
 
 jobs:
   sync:
-    # Run only if the issue has the codex-ready label
-    if: contains(join(github.event.issue.labels.*.name, ','), 'codex-ready')
+    if: contains(toJson(github.event.issue.labels), 'codex-ready')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Write issue to docs/issues
+      - name: Generate markdown file
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const path = require('path');
+            const fs = require("fs");
+            const path = require("path");
 
-            const issue = context.payload.issue;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const issueNumber = context.payload.issue.number;
 
-            // Fetch full issue (body is usually present, but this is safest)
             const { data } = await github.rest.issues.get({
               owner,
               repo,
-              issue_number: issue.number,
+              issue_number: issueNumber
             });
 
-            const labels = (data.labels || []).map(l => (typeof l === 'string' ? l : l.name)).filter(Boolean);
-            const fileDir = path.join(process.cwd(), 'docs', 'issues');
-            const filePath = path.join(fileDir, `issue-${data.number}.md`);
+            const labels = (data.labels || [])
+              .map(l => (typeof l === "string" ? l : l.name))
+              .filter(Boolean);
 
-            fs.mkdirSync(fileDir, { recursive: true });
+            const dir = path.join(process.cwd(), "docs", "issues");
+            fs.mkdirSync(dir, { recursive: true });
 
-            const md =
-`---
-issue: ${data.number}
-title: ${JSON.stringify(data.title)}
-state: ${data.state}
-created_at: ${data.created_at}
-updated_at: ${data.updated_at}
-url: ${data.html_url}
-labels: ${JSON.stringify(labels)}
----
+            const filePath = path.join(dir, `issue-${data.number}.md`);
 
-# ${data.title}
+            const header =
+              "# Issue #" + data.number + ": " + data.title + "\n\n" +
+              "- State: " + data.state + "\n" +
+              "- URL: " + data.html_url + "\n" +
+              "- Labels: " + (labels.join(", ") || "(none)") + "\n" +
+              "- Updated: " + data.updated_at + "\n\n";
 
-${data.body || ''}`.trim() + "\n";
+            const body = ((data.body || "").trim() + "\n");
+            fs.writeFileSync(filePath, header + body, "utf8");
 
-            fs.writeFileSync(filePath, md, 'utf8');
             core.info(`Wrote ${filePath}`);
 
       - name: Create or update PR
@@ -67,7 +62,5 @@ ${data.body || ''}`.trim() + "\n";
           branch: chore/sync-issues-to-md
           title: "chore: sync codex-ready issues to markdown"
           commit-message: "chore: sync issues to markdown"
-          body: |
-            This PR updates `docs/issues/` with the latest content of issues labeled `codex-ready`.
-          labels: |
-            automation
+          body: "Sync issues labeled codex-ready into docs/issues/."
+          labels: automation
