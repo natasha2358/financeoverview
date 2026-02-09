@@ -8,4 +8,5 @@ public sealed record ImportBatchDto(
     DateOnly StatementMonth,
     string Status,
     string StorageKey,
-    string? Sha256Hash);
+    string? Sha256Hash,
+    string? ParserKey);

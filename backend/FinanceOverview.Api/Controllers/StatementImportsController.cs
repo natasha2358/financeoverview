@@ -18,17 +18,20 @@ public class StatementImportsController : ControllerBase
     private readonly ImportStorageService _storageService;
     private readonly ExtractedTextStorageService _extractedTextStorage;
     private readonly IPdfTextExtractor _textExtractor;
+    private readonly IStatementParserSelector _parserSelector;
 
     public StatementImportsController(
         AppDbContext dbContext,
         ImportStorageService storageService,
         ExtractedTextStorageService extractedTextStorage,
-        IPdfTextExtractor textExtractor)
+        IPdfTextExtractor textExtractor,
+        IStatementParserSelector parserSelector)
     {
         _dbContext = dbContext;
         _storageService = storageService;
         _extractedTextStorage = extractedTextStorage;
         _textExtractor = textExtractor;
+        _parserSelector = parserSelector;
     }
 
     [HttpPost]
@@ -141,6 +144,7 @@ public class StatementImportsController : ControllerBase
         await _extractedTextStorage.SaveExtractedTextAsync(importBatch.Id, extractedText, cancellationToken);
 
         importBatch.ExtractedAtUtc = DateTime.UtcNow;
+        importBatch.ParserKey ??= _parserSelector.SelectParserKey(importBatch, extractedText);
         if (importBatch.Status is ImportBatchStatus.Uploaded or ImportBatchStatus.Failed)
         {
             importBatch.Status = ImportBatchStatus.Extracted;
@@ -182,7 +186,8 @@ public class StatementImportsController : ControllerBase
             batch.StatementMonth,
             batch.Status.ToString(),
             batch.StorageKey,
-            batch.Sha256Hash);
+            batch.Sha256Hash,
+            batch.ParserKey);
     }
 
     private static bool IsPdf(IFormFile file)
