@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<StagedTransaction> StagedTransactions => Set<StagedTransaction>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -40,5 +41,15 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ImportBatch>()
             .HasIndex(batch => new { batch.StatementMonth, batch.Sha256Hash })
             .IsUnique();
+
+        modelBuilder.Entity<StagedTransaction>()
+            .HasOne(staged => staged.ImportBatch)
+            .WithMany(batch => batch.StagedTransactions)
+            .HasForeignKey(staged => staged.ImportBatchId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<StagedTransaction>()
+            .Property(staged => staged.IsApproved)
+            .HasDefaultValue(false);
     }
 }
