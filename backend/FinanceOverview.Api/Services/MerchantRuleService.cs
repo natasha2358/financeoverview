@@ -15,12 +15,18 @@ public class MerchantRuleService
 
     public async Task<MerchantRule?> FindBestMatchAsync(string rawDescription, CancellationToken cancellationToken)
     {
-        var rules = await _dbContext.MerchantRules
-            .AsNoTracking()
-            .OrderBy(rule => rule.Priority)
-            .ToListAsync(cancellationToken);
+        var rules = await GetOrderedRulesAsync(cancellationToken);
 
         return FindBestMatch(rawDescription, rules);
+    }
+
+    public async Task<IReadOnlyList<MerchantRule>> GetOrderedRulesAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.MerchantRules
+            .AsNoTracking()
+            .OrderBy(rule => rule.Priority)
+            .ThenBy(rule => rule.Id)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task ApplyRulesAsync(IEnumerable<Transaction> transactions, CancellationToken cancellationToken)
@@ -31,10 +37,7 @@ public class MerchantRuleService
             return;
         }
 
-        var rules = await _dbContext.MerchantRules
-            .AsNoTracking()
-            .OrderBy(rule => rule.Priority)
-            .ToListAsync(cancellationToken);
+        var rules = await GetOrderedRulesAsync(cancellationToken);
 
         foreach (var transaction in transactionList)
         {
@@ -52,7 +55,7 @@ public class MerchantRuleService
         }
     }
 
-    private static MerchantRule? FindBestMatch(string rawDescription, IReadOnlyList<MerchantRule> rules)
+    public static MerchantRule? FindBestMatch(string rawDescription, IReadOnlyList<MerchantRule> rules)
     {
         if (string.IsNullOrWhiteSpace(rawDescription) || rules.Count == 0)
         {
@@ -67,6 +70,7 @@ public class MerchantRuleService
                 && description.Contains(NormalizeForMatch(rule.Pattern), StringComparison.OrdinalIgnoreCase)
                 && rule.MatchType == MerchantRuleMatchType.Contains)
             .OrderBy(rule => rule.Priority)
+            .ThenBy(rule => rule.Id)
             .FirstOrDefault();
     }
 
