@@ -68,4 +68,59 @@ public class RulesApiTests
         Assert.Contains("Coffee Shop Main Street", payload);
         Assert.Contains("Rent payment February", payload);
     }
+    [Fact]
+    public async Task PostUnmappedMerchants_ExcludesTransactionsMatchedByExistingRules()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.MerchantRules.Add(new MerchantRule
+            {
+                Pattern = "Coffee Shop",
+                MatchType = MerchantRuleMatchType.Contains,
+                NormalizedMerchant = "Coffee Shop",
+                Priority = 100,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            dbContext.Transactions.AddRange(
+                new Transaction
+                {
+                    Date = new DateOnly(2026, 2, 1),
+                    RawDescription = "Coffee Shop Main Street",
+                    Merchant = "Coffee Shop",
+                    Amount = -4.5m,
+                    Currency = "EUR",
+                    MerchantNormalized = null
+                },
+                new Transaction
+                {
+                    Date = new DateOnly(2026, 2, 5),
+                    RawDescription = "Rent payment February",
+                    Merchant = "Rent",
+                    Amount = -800m,
+                    Currency = "EUR",
+                    MerchantNormalized = null
+                });
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/rules/unmapped-merchants",
+            new UnmappedMerchantsRequest { Month = "2026-02" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<List<string>>();
+        Assert.NotNull(payload);
+        Assert.Single(payload);
+        Assert.DoesNotContain("Coffee Shop Main Street", payload);
+        Assert.Contains("Rent payment February", payload);
+    }
+
 }
