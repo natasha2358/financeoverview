@@ -6,6 +6,8 @@ using FinanceOverview.Api.Dtos;
 using FinanceOverview.Api.Models;
 using FinanceOverview.Api.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 using System.Linq;
 
@@ -17,7 +19,7 @@ public class StatementImportsApiTests
     public async Task PostExtractText_UpdatesMetadata()
     {
         using var factory = new TestWebApplicationFactory();
-        await factory.InitializeDatabaseAsync();
+        await InitializeDatabaseAsync(factory);
 
         using var client = factory.CreateClient();
         using var content = BuildMultipart("statement.pdf", "application/pdf");
@@ -51,10 +53,11 @@ public class StatementImportsApiTests
             {
                 builder.ConfigureServices(services =>
                 {
-                    var descriptor = services.SingleOrDefault(service =>
-                        service.ServiceType == typeof(IPdfTextExtractor));
+                    var descriptors = services
+                        .Where(service => service.ServiceType == typeof(IPdfTextExtractor))
+                        .ToList();
 
-                    if (descriptor is not null)
+                    foreach (var descriptor in descriptors)
                     {
                         services.Remove(descriptor);
                     }
@@ -63,7 +66,7 @@ public class StatementImportsApiTests
                 });
             });
 
-        await factory.InitializeDatabaseAsync();
+        await InitializeDatabaseAsync(factory);
 
         using var client = factory.CreateClient();
         using var content = BuildMultipart("statement.pdf", "application/pdf");
@@ -253,6 +256,14 @@ public class StatementImportsApiTests
         Assert.Single(list);
     }
 
+
+
+    private static async Task InitializeDatabaseAsync(WebApplicationFactory<Program> factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+    }
 
     private sealed class ThrowingPdfTextExtractor : IPdfTextExtractor
     {
