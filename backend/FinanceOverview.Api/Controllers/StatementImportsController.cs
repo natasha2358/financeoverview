@@ -33,7 +33,7 @@ public class StatementImportsController : ControllerBase
         IPdfTextExtractor textExtractor,
         IStatementParserSelector parserSelector,
         IStatementParserRegistry parserRegistry,
-        MerchantRuleService merchantRuleService)
+        MerchantRuleService merchantRuleService,
         ILogger<StatementImportsController> logger)
     {
         _dbContext = dbContext;
