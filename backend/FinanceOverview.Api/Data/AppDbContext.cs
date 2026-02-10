@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     public DbSet<StagedTransaction> StagedTransactions => Set<StagedTransaction>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<MerchantRule> MerchantRules => Set<MerchantRule>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -56,5 +58,23 @@ public class AppDbContext : DbContext
             .HasIndex(transaction => new { transaction.ImportBatchId, transaction.RowFingerprint })
             .IsUnique()
             .HasFilter("ImportBatchId IS NOT NULL AND RowFingerprint IS NOT NULL");
+
+        modelBuilder.Entity<Category>()
+            .HasIndex(category => category.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<MerchantRule>()
+            .Property(rule => rule.MatchType)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<MerchantRule>()
+            .Property(rule => rule.Priority)
+            .HasDefaultValue(100);
+
+        modelBuilder.Entity<Transaction>()
+            .HasOne(transaction => transaction.Category)
+            .WithMany()
+            .HasForeignKey(transaction => transaction.CategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
