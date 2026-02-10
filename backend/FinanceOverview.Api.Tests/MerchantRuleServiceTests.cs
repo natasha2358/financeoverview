@@ -82,4 +82,36 @@ public class MerchantRuleServiceTests
         Assert.NotNull(match);
         Assert.Equal("Coffee Shop", match!.NormalizedMerchant);
     }
+
+    [Fact]
+    public void FindBestMatch_TieBreaksByRuleIdForSamePriority()
+    {
+        var rules = new[]
+        {
+            new MerchantRule
+            {
+                Id = 22,
+                Pattern = "Coffee",
+                MatchType = MerchantRuleMatchType.Contains,
+                NormalizedMerchant = "Second Match",
+                Priority = 100,
+                CreatedAtUtc = DateTime.UtcNow
+            },
+            new MerchantRule
+            {
+                Id = 11,
+                Pattern = "Coffee",
+                MatchType = MerchantRuleMatchType.Contains,
+                NormalizedMerchant = "First Match",
+                Priority = 100,
+                CreatedAtUtc = DateTime.UtcNow
+            }
+        };
+
+        var match = MerchantRuleService.FindBestMatch("Coffee purchase", rules);
+
+        Assert.NotNull(match);
+        Assert.Equal(11, match!.Id);
+        Assert.Equal("First Match", match.NormalizedMerchant);
+    }
 }

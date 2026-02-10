@@ -2,6 +2,7 @@ using System.Globalization;
 using FinanceOverview.Api.Data;
 using FinanceOverview.Api.Dtos;
 using FinanceOverview.Api.Models;
+using FinanceOverview.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,10 +14,12 @@ public class RulesController : ControllerBase
 {
     private const int MerchantCandidateLength = 40;
     private readonly AppDbContext _dbContext;
+    private readonly MerchantRuleService _merchantRuleService;
 
-    public RulesController(AppDbContext dbContext)
+    public RulesController(AppDbContext dbContext, MerchantRuleService merchantRuleService)
     {
         _dbContext = dbContext;
+        _merchantRuleService = merchantRuleService;
     }
 
     [HttpGet]
@@ -104,6 +107,8 @@ public class RulesController : ControllerBase
 
         var monthEnd = monthStart.AddMonths(1);
 
+        var rules = await _merchantRuleService.GetOrderedRulesAsync(HttpContext.RequestAborted);
+
         var candidates = await _dbContext.Transactions
             .AsNoTracking()
             .Where(transaction =>
@@ -114,6 +119,7 @@ public class RulesController : ControllerBase
             .ToListAsync();
 
         var distinctCandidates = candidates
+            .Where(rawDescription => MerchantRuleService.FindBestMatch(rawDescription, rules) is null)
             .Select(DeriveMerchantCandidate)
             .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
             .Distinct(StringComparer.OrdinalIgnoreCase)
