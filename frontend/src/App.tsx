@@ -105,6 +105,8 @@ const App = () => {
   const [route, setRoute] = useState<Route>(() => getRouteFromPath());
   const isDashboardRoute = route === "dashboard";
   const [importView, setImportView] = useState<ImportView>("list");
+  const isDashboardRoute = window.location.pathname === "/dashboard";
+  const [viewMode, setViewMode] = useState<ViewMode>("imports");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -258,9 +260,12 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isDashboardRoute) {
+      return;
+    }
     loadTransactions();
     loadImports();
-  }, [loadImports, loadTransactions]);
+  }, [isDashboardRoute, loadImports, loadTransactions]);
 
   useEffect(() => {
     if (!isValidMonthString(rulesMonth)) {
@@ -788,6 +793,7 @@ const App = () => {
         </section>
       </main>
     );
+    return <Dashboard />;
   }
 
   return (
