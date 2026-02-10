@@ -171,8 +171,7 @@ public class ImportCommitApiTests
         using var verificationScope = factory.Services.CreateScope();
         var verificationDbContext = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
         var committed = await verificationDbContext.Transactions
-            .OrderByDescending(transaction => transaction.Date)
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync(transaction => transaction.RawDescription.Contains("COFFEE"));
 
         Assert.NotNull(committed);
         Assert.Equal("Coffee Shop", committed!.MerchantNormalized);
