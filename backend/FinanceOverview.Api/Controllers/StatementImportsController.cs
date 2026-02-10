@@ -5,6 +5,7 @@ using FinanceOverview.Api.Data;
 using FinanceOverview.Api.Dtos;
 using FinanceOverview.Api.Models;
 using FinanceOverview.Api.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ public class StatementImportsController : ControllerBase
     private readonly IPdfTextExtractor _textExtractor;
     private readonly IStatementParserSelector _parserSelector;
     private readonly IStatementParserRegistry _parserRegistry;
+    private readonly ILogger<StatementImportsController> _logger;
 
     public StatementImportsController(
         AppDbContext dbContext,
@@ -29,7 +31,8 @@ public class StatementImportsController : ControllerBase
         ExtractedTextStorageService extractedTextStorage,
         IPdfTextExtractor textExtractor,
         IStatementParserSelector parserSelector,
-        IStatementParserRegistry parserRegistry)
+        IStatementParserRegistry parserRegistry,
+        ILogger<StatementImportsController> logger)
     {
         _dbContext = dbContext;
         _storageService = storageService;
@@ -37,6 +40,7 @@ public class StatementImportsController : ControllerBase
         _textExtractor = textExtractor;
         _parserSelector = parserSelector;
         _parserRegistry = parserRegistry;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -145,8 +149,20 @@ public class StatementImportsController : ControllerBase
             return NotFound(new { error = "Stored PDF not found." });
         }
 
-        var extractedText = await _textExtractor.ExtractTextAsync(pdfPath, cancellationToken);
-        await _extractedTextStorage.SaveExtractedTextAsync(importBatch.Id, extractedText, cancellationToken);
+        string extractedText;
+        try
+        {
+            extractedText = await _textExtractor.ExtractTextAsync(pdfPath, cancellationToken);
+            await _extractedTextStorage.SaveExtractedTextAsync(importBatch.Id, extractedText, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to extract text for import batch {ImportBatchId}.", importBatch.Id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = "Failed to extract text from PDF."
+            });
+        }
 
         importBatch.ExtractedAtUtc = DateTime.UtcNow;
         importBatch.ParserKey ??= _parserSelector.SelectParserKey(importBatch, extractedText);
