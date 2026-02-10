@@ -39,28 +39,73 @@ p {
 
 .card__header {
   margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
 }
 
-.tabs {
+.nav {
   display: flex;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.tab {
+.nav__link {
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #1e293b;
   padding: 0.45rem 1rem;
   border-radius: 999px;
   font-weight: 600;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.tab--active {
+.nav__link--active {
   border-color: #2563eb;
   background: #2563eb;
   color: #ffffff;
+}
+
+.nav-widget {
+  margin-bottom: 1rem;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.nav-widget__label {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.nav-widget__links {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.nav-widget__link {
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.nav-widget__link--active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .status {
@@ -100,6 +145,16 @@ label {
 
 input[type="file"],
 input[type="month"] {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+input[type="text"],
+input[type="number"],
+select {
   border: 1px solid #cbd5f5;
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
@@ -308,6 +363,71 @@ input[type="month"] {
   background: #e2e8f0;
   font-weight: 600;
   color: #1e293b;
+}
+
+.rules {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.rules__month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rules__section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.rules__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.rules__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.rules__card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #ffffff;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.rules__candidate {
+  font-weight: 600;
+}
+
+.rules__form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.rules__existing {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
 }
 
 @media (min-width: 720px) {

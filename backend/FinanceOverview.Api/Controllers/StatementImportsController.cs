@@ -22,6 +22,7 @@ public class StatementImportsController : ControllerBase
     private readonly IPdfTextExtractor _textExtractor;
     private readonly IStatementParserSelector _parserSelector;
     private readonly IStatementParserRegistry _parserRegistry;
+    private readonly MerchantRuleService _merchantRuleService;
 
     public StatementImportsController(
         AppDbContext dbContext,
@@ -29,7 +30,8 @@ public class StatementImportsController : ControllerBase
         ExtractedTextStorageService extractedTextStorage,
         IPdfTextExtractor textExtractor,
         IStatementParserSelector parserSelector,
-        IStatementParserRegistry parserRegistry)
+        IStatementParserRegistry parserRegistry,
+        MerchantRuleService merchantRuleService)
     {
         _dbContext = dbContext;
         _storageService = storageService;
@@ -37,6 +39,7 @@ public class StatementImportsController : ControllerBase
         _textExtractor = textExtractor;
         _parserSelector = parserSelector;
         _parserRegistry = parserRegistry;
+        _merchantRuleService = merchantRuleService;
     }
 
     [HttpPost]
@@ -343,6 +346,7 @@ public class StatementImportsController : ControllerBase
 
         if (newTransactions.Count > 0)
         {
+            await _merchantRuleService.ApplyRulesAsync(newTransactions, cancellationToken);
             _dbContext.Transactions.AddRange(newTransactions);
         }
 
