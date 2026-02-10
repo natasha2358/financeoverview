@@ -70,6 +70,25 @@ type RuleDraft = {
 
 type Route = "dashboard" | "imports" | "rules";
 
+const monthPattern = /^(\d{4})-(\d{2})$/;
+
+const isValidMonthString = (value: string) => {
+  const match = monthPattern.exec(value);
+  if (!match) {
+    return false;
+  }
+
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12;
+};
+
+const getCurrentLocalMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
+};
+
 const App = () => {
   const getRouteFromPath = useCallback((): Route => {
     const path = window.location.pathname.toLowerCase();
@@ -111,10 +130,10 @@ const App = () => {
   const [commitError, setCommitError] = useState<string | null>(null);
   const [rulesMonth, setRulesMonth] = useState(() => {
     const saved = localStorage.getItem("rulesMonth");
-    if (saved) {
+    if (saved && isValidMonthString(saved)) {
       return saved;
     }
-    return new Date().toISOString().slice(0, 7);
+    return getCurrentLocalMonth();
   });
   const [unmappedMerchants, setUnmappedMerchants] = useState<string[]>([]);
   const [unmappedLoading, setUnmappedLoading] = useState(false);
@@ -243,6 +262,10 @@ const App = () => {
   }, [loadImports, loadTransactions]);
 
   useEffect(() => {
+    if (!isValidMonthString(rulesMonth)) {
+      return;
+    }
+
     localStorage.setItem("rulesMonth", rulesMonth);
   }, [rulesMonth]);
 
@@ -257,6 +280,10 @@ const App = () => {
   );
 
   const shiftMonth = useCallback((value: string, delta: number) => {
+    if (!isValidMonthString(value)) {
+      return getCurrentLocalMonth();
+    }
+
     const [year, month] = value.split("-").map(Number);
     const absoluteMonth = year * 12 + (month - 1) + delta;
     const nextYear = Math.floor(absoluteMonth / 12);
@@ -629,7 +656,9 @@ const App = () => {
         }
 
         await loadRules();
-        await loadUnmappedMerchants(rulesMonth);
+        if (isValidMonthString(rulesMonth)) {
+          await loadUnmappedMerchants(rulesMonth);
+        }
       } catch (saveError) {
         const message =
           saveError instanceof Error
@@ -666,7 +695,12 @@ const App = () => {
 
     void loadCategories();
     void loadRules();
-    void loadUnmappedMerchants(rulesMonth);
+    if (isValidMonthString(rulesMonth)) {
+      void loadUnmappedMerchants(rulesMonth);
+    } else {
+      setUnmappedMerchants([]);
+      setUnmappedError(null);
+    }
   }, [loadCategories, loadRules, loadUnmappedMerchants, route, rulesMonth]);
 
   useEffect(() => {
@@ -1037,7 +1071,7 @@ const App = () => {
                   className="button button--ghost"
                   type="button"
                   onClick={() => loadUnmappedMerchants(rulesMonth)}
-                  disabled={unmappedLoading}
+                  disabled={unmappedLoading || !isValidMonthString(rulesMonth)}
                 >
                   {unmappedLoading ? "Refreshing…" : "Refresh"}
                 </button>
