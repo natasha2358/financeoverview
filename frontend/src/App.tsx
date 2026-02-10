@@ -96,7 +96,7 @@ const App = () => {
     if (path.startsWith("/rules")) {
       return "rules";
     }
-    if (path.startsWith("/imports")) {
+    if (path.startsWith("/imports") || path.startsWith("/transactions")) {
       return "imports";
     }
     return "dashboard";
@@ -772,6 +772,21 @@ const App = () => {
   };
 
   if (isDashboardRoute) {
+    return (
+      <main className="app">
+        <section className="card">
+          <header className="card__header">
+            <div>
+              <h1>Finance Overview</h1>
+              <p>Track statement imports and monitor transaction activity.</p>
+            </div>
+            {renderTopNav(route)}
+          </header>
+          {navigationWidget}
+          <Dashboard />
+        </section>
+      </main>
+    );
     return <Dashboard />;
   }
 
