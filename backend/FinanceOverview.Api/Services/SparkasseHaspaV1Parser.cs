@@ -49,7 +49,7 @@ public sealed class SparkasseHaspaV1Parser : IStatementParser
                     Amount = amount,
                     Currency = currency,
                     RunningBalance = balance,
-                    IsApproved = false
+                    IsApproved = true
                 });
             }
         }

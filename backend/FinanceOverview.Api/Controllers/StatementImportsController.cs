@@ -298,6 +298,37 @@ public class StatementImportsController : ControllerBase
         return Ok(ToDto(staged));
     }
 
+
+    [HttpPut("{id:int}/staged-transactions/approval")]
+    public async Task<ActionResult<IReadOnlyList<StagedTransactionDto>>> UpdateAllStagedApprovals(
+        int id,
+        [FromBody] BulkUpdateStagedTransactionApprovalRequest request,
+        CancellationToken cancellationToken)
+    {
+        var importExists = await _dbContext.ImportBatches
+            .AsNoTracking()
+            .AnyAsync(batch => batch.Id == id, cancellationToken);
+
+        if (!importExists)
+        {
+            return NotFound();
+        }
+
+        var rows = await _dbContext.StagedTransactions
+            .Where(row => row.ImportBatchId == id)
+            .OrderBy(row => row.RowIndex)
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in rows)
+        {
+            row.IsApproved = request.IsApproved;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(rows.Select(ToDto).ToList());
+    }
+
     [HttpPost("{id:int}/commit")]
     public async Task<ActionResult<CommitImportBatchResultDto>> Commit(
         int id,

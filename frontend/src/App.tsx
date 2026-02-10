@@ -127,6 +127,7 @@ const App = () => {
   const [stagedError, setStagedError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [isBulkUpdatingApprovals, setIsBulkUpdatingApprovals] = useState(false);
   const [commitMessage, setCommitMessage] = useState<string | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [rulesMonth, setRulesMonth] = useState(() => {
@@ -592,6 +593,53 @@ const App = () => {
     [selectedImport],
   );
 
+  const handleSetAllApprovals = useCallback(
+    async (nextValue: boolean) => {
+      if (!selectedImport || stagedRows.length === 0) {
+        return;
+      }
+
+      if (stagedRows.every((row) => row.isApproved === nextValue)) {
+        return;
+      }
+
+      setIsBulkUpdatingApprovals(true);
+      setStagedError(null);
+
+      try {
+        const response = await fetch(
+          `/api/imports/${selectedImport.id}/staged-transactions/approval`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ isApproved: nextValue }),
+          },
+        );
+
+        if (!response.ok) {
+          const errorPayload = (await response.json()) as { error?: string };
+          throw new Error(
+            errorPayload.error ?? "Unable to update approvals for all rows.",
+          );
+        }
+
+        const updatedRows = (await response.json()) as StagedTransaction[];
+        setStagedRows(updatedRows);
+      } catch (approvalError) {
+        const message =
+          approvalError instanceof Error
+            ? approvalError.message
+            : "Unexpected error while updating all approvals.";
+        setStagedError(message);
+      } finally {
+        setIsBulkUpdatingApprovals(false);
+      }
+    },
+    [selectedImport, stagedRows],
+  );
+
   const handleCommitApproved = useCallback(async () => {
     if (!selectedImport) {
       return;
@@ -878,14 +926,32 @@ const App = () => {
                   <section className="import-review__card">
                     <div className="import-review__header">
                       <h3>Staged transactions</h3>
-                      <button
-                        className="button button--ghost"
-                        type="button"
-                        onClick={handleCommitApproved}
-                        disabled={isCommitting || approvedCount === 0}
-                      >
-                        {isCommitting ? "Committing…" : "Commit approved"}
-                      </button>
+                      <div className="import-review__actions">
+                        <button
+                          className="button button--ghost"
+                          type="button"
+                          onClick={() => handleSetAllApprovals(true)}
+                          disabled={isBulkUpdatingApprovals || stagedRows.length === 0}
+                        >
+                          Approve all
+                        </button>
+                        <button
+                          className="button button--ghost"
+                          type="button"
+                          onClick={() => handleSetAllApprovals(false)}
+                          disabled={isBulkUpdatingApprovals || stagedRows.length === 0}
+                        >
+                          Reject all
+                        </button>
+                        <button
+                          className="button button--ghost"
+                          type="button"
+                          onClick={handleCommitApproved}
+                          disabled={isCommitting || isBulkUpdatingApprovals || approvedCount === 0}
+                        >
+                          {isCommitting ? "Committing…" : "Commit approved"}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <h4>Diagnostics</h4>
