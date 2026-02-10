@@ -787,6 +787,7 @@ const App = () => {
         </section>
       </main>
     );
+    return <Dashboard />;
   }
 
   return (
