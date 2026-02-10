@@ -105,8 +105,6 @@ const App = () => {
   const [route, setRoute] = useState<Route>(() => getRouteFromPath());
   const isDashboardRoute = route === "dashboard";
   const [importView, setImportView] = useState<ImportView>("list");
-  const isDashboardRoute = window.location.pathname === "/dashboard";
-  const [viewMode, setViewMode] = useState<ViewMode>("imports");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -774,25 +772,6 @@ const App = () => {
   };
 
   if (isDashboardRoute) {
-    return (
-      <main className="app">
-        <section className="card">
-          <header className="card__header">
-            <div>
-              <h1>Finance Overview</h1>
-              <p>Track statement imports and monitor transaction activity.</p>
-            </div>
-            {renderTopNav(route)}
-          </header>
-          {navigationWidget}
-          <Dashboard
-            transactions={transactions}
-            isLoading={isLoading}
-            error={error}
-          />
-        </section>
-      </main>
-    );
     return <Dashboard />;
   }
 
