@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using FinanceOverview.Api.Data;
 using FinanceOverview.Api.Dtos;
 using FinanceOverview.Api.Models;
+using FinanceOverview.Api.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using System.Linq;
@@ -39,6 +40,46 @@ public class StatementImportsApiTests
         Assert.NotNull(refreshed);
         Assert.Equal("Extracted", refreshed.Status);
         Assert.NotNull(refreshed.ExtractedAtUtc);
+    }
+
+
+    [Fact]
+    public async Task PostExtractText_ReturnsJsonErrorWhenExtractionFails()
+    {
+        using var factory = new TestWebApplicationFactory()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    var descriptor = services.SingleOrDefault(service =>
+                        service.ServiceType == typeof(IPdfTextExtractor));
+
+                    if (descriptor is not null)
+                    {
+                        services.Remove(descriptor);
+                    }
+
+                    services.AddSingleton<IPdfTextExtractor, ThrowingPdfTextExtractor>();
+                });
+            });
+
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using var extractResponse = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.InternalServerError, extractResponse.StatusCode);
+
+        var payload = await extractResponse.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("Failed to extract text from PDF.", payload.Error);
     }
 
     [Fact]
@@ -210,6 +251,20 @@ public class StatementImportsApiTests
         var list = await client.GetFromJsonAsync<List<ImportBatchDto>>("/api/imports");
         Assert.NotNull(list);
         Assert.Single(list);
+    }
+
+
+    private sealed class ThrowingPdfTextExtractor : IPdfTextExtractor
+    {
+        public Task<string> ExtractTextAsync(string pdfPath, CancellationToken cancellationToken)
+        {
+            throw new FileNotFoundException("Could not load file or assembly 'UglyToad.PdfPig.Core, Version=0.1.9.0'");
+        }
+    }
+
+    private sealed class ErrorResponse
+    {
+        public string? Error { get; init; }
     }
 
     public static MultipartFormDataContent BuildMultipart(string fileName, string contentType)
