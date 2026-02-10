@@ -238,9 +238,12 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isDashboardRoute) {
+      return;
+    }
     loadTransactions();
     loadImports();
-  }, [loadImports, loadTransactions]);
+  }, [isDashboardRoute, loadImports, loadTransactions]);
 
   useEffect(() => {
     localStorage.setItem("rulesMonth", rulesMonth);
@@ -688,62 +691,7 @@ const App = () => {
   };
 
   if (isDashboardRoute) {
-    return (
-      <main className="app">
-        <section className="card">
-          <header className="card__header">
-            <div>
-              <h1>Finance Overview</h1>
-              <p>Track statement imports and monitor transaction activity.</p>
-            </div>
-            <nav className="nav">
-              <a
-                className={`nav__link ${
-                  route === "dashboard" ? "nav__link--active" : ""
-                }`}
-                href="/"
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate("dashboard");
-                }}
-              >
-                Dashboard
-              </a>
-              <a
-                className={`nav__link ${
-                  route === "imports" ? "nav__link--active" : ""
-                }`}
-                href="/imports"
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate("imports");
-                }}
-              >
-                Imports
-              </a>
-              <a
-                className={`nav__link ${
-                  route === "rules" ? "nav__link--active" : ""
-                }`}
-                href="/rules"
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate("rules");
-                }}
-              >
-                Rules
-              </a>
-            </nav>
-          </header>
-          {navigationWidget}
-          <Dashboard
-            transactions={transactions}
-            isLoading={isLoading}
-            error={error}
-          />
-        </section>
-      </main>
-    );
+    return <Dashboard />;
   }
 
   return (
