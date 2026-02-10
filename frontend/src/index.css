@@ -295,6 +295,14 @@ select {
   gap: 1rem;
 }
 
+.import-review__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .import-review__meta {
   display: grid;
   grid-template-columns: minmax(120px, 180px) 1fr;

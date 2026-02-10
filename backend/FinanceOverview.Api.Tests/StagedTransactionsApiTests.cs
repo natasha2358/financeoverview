@@ -40,7 +40,7 @@ public class StagedTransactionsApiTests
         Assert.Equal(-4.50m, first.Amount);
         Assert.Equal("EUR", first.Currency);
         Assert.Equal(1234.56m, first.RunningBalance);
-        Assert.False(first.IsApproved);
+        Assert.True(first.IsApproved);
     }
 
     [Fact]
@@ -73,4 +73,55 @@ public class StagedTransactionsApiTests
         Assert.Equal(3, stagedRows.Count);
         Assert.Equal(new[] { 1, 2, 3 }, stagedRows.Select(row => row.RowIndex).ToArray());
     }
+
+
+    [Fact]
+    public async Task PutBulkApproval_UpdatesAllRowsInSingleRequest()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        using var content = StatementImportsApiTests.BuildMultipart("statement.pdf", "application/pdf");
+
+        using var createResponse = await client.PostAsync("/api/imports", content);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ImportBatchDto>();
+        Assert.NotNull(created);
+
+        using var extractResponse = await client.PostAsync($"/api/imports/{created.Id}/extract-text", null);
+        Assert.Equal(HttpStatusCode.OK, extractResponse.StatusCode);
+
+        using var parseResponse = await client.PostAsync($"/api/imports/{created.Id}/parse-to-staging", null);
+        Assert.Equal(HttpStatusCode.OK, parseResponse.StatusCode);
+
+        var bulkRequest = new BulkUpdateStagedTransactionApprovalRequest { IsApproved = false };
+        using var bulkResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{created.Id}/staged-transactions/approval",
+            bulkRequest);
+        Assert.Equal(HttpStatusCode.OK, bulkResponse.StatusCode);
+
+        var updatedRows = await bulkResponse.Content.ReadFromJsonAsync<List<StagedTransactionDto>>();
+        Assert.NotNull(updatedRows);
+        Assert.Equal(3, updatedRows.Count);
+        Assert.All(updatedRows, row => Assert.False(row.IsApproved));
+    }
+
+    [Fact]
+    public async Task PutBulkApproval_ReturnsNotFound_WhenImportDoesNotExist()
+    {
+        using var factory = new TestWebApplicationFactory();
+        await factory.InitializeDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        var bulkRequest = new BulkUpdateStagedTransactionApprovalRequest { IsApproved = true };
+
+        using var response = await client.PutAsJsonAsync(
+            "/api/imports/999/staged-transactions/approval",
+            bulkRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
 }

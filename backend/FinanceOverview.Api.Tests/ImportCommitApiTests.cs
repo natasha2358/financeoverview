@@ -47,6 +47,12 @@ public class ImportCommitApiTests
             approveRequest);
         Assert.Equal(HttpStatusCode.OK, secondApproveResponse.StatusCode);
 
+        var rejectRequest = new UpdateStagedTransactionApprovalRequest { IsApproved = false };
+        using var rejectResponse = await client.PutAsJsonAsync(
+            $"/api/imports/{created.Id}/staged-transactions/{stagedRows[2].Id}/approval",
+            rejectRequest);
+        Assert.Equal(HttpStatusCode.OK, rejectResponse.StatusCode);
+
         using var commitResponse = await client.PostAsync($"/api/imports/{created.Id}/commit", null);
         Assert.Equal(HttpStatusCode.OK, commitResponse.StatusCode);
 
@@ -165,8 +171,7 @@ public class ImportCommitApiTests
         using var verificationScope = factory.Services.CreateScope();
         var verificationDbContext = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
         var committed = await verificationDbContext.Transactions
-            .OrderByDescending(transaction => transaction.Date)
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync(transaction => transaction.RawDescription.Contains("COFFEE"));
 
         Assert.NotNull(committed);
         Assert.Equal("Coffee Shop", committed!.MerchantNormalized);
